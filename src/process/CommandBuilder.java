@@ -20,9 +20,11 @@ public class CommandBuilder {
         if (lc.endsWith(".bat") || lc.endsWith(".cmd")) {
             cmd.add("cmd");
             cmd.add("/c");
-            cmd.add("start");
-            cmd.add("\"\"");
-            cmd.add("/wait");
+            // Fjernet "start" / "wait" for å beholde stdin/stdout-kobling mot
+            // Java-prosessen.
+            // Dette er nødvendig for at vi skal kunne sende "stop"-kommando til f.eks.
+            // Minecraft,
+            // og for at ProcessOutputLogger skal få tak i logg.
             cmd.add(realFile.getAbsolutePath());
             if (arguments != null && !arguments.isBlank()) {
                 String[] parts = splitArguments(arguments);

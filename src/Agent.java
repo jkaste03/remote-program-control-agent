@@ -1,14 +1,5 @@
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Paths;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
+import java.util.concurrent.TimeUnit;
 import command.CommandAction;
 import manager.ProcessManager;
 
@@ -20,13 +11,15 @@ public class Agent {
 
         // Demo: start og stopp (eksempel). I det virkelige større programmet vil man
         // bare kalle manager.startProgram(...) og manager.stopProgram(...).
-        String demoShortcut = "paintdotnet.exe.lnk";
+        String demoShortcut = "start.bat.lnk";
 
         manager.handleCommand(demoShortcut, CommandAction.START);
+        manager.handleCommand("paintdotnet.exe.lnk", CommandAction.START);
 
         // Simuler ventetid for demo (30s)
-        TimeUnit.SECONDS.sleep(30);
+        TimeUnit.SECONDS.sleep(70);
 
         manager.handleCommand(demoShortcut, CommandAction.STOP);
+        manager.handleCommand("paintdotnet.exe.lnk", CommandAction.STOP);
     }
 }
