@@ -69,7 +69,7 @@ public class ProcessManager {
 
             ManagedProcess mp = new ManagedProcess(p, null, false, handler);
             handler.onStart(p, mp);
-            
+
             activeProcesses.put(filename, mp);
 
             System.out.println(
