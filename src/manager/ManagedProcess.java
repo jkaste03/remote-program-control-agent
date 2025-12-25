@@ -3,14 +3,30 @@ package manager;
 import java.io.BufferedWriter;
 import java.lang.Process;
 
+import program.ProgramHandler;
+
 public class ManagedProcess {
     private final Process process;
-    private final BufferedWriter stdinWriter; // kan være null
-    private final boolean minecraft;
+    private BufferedWriter stdinWriter; // kan være null
+    private boolean minecraft;
+    private ProgramHandler handler;
 
-    public ManagedProcess(Process process, BufferedWriter stdinWriter, boolean minecraft) {
+    public ManagedProcess(Process process, BufferedWriter stdinWriter, boolean minecraft, ProgramHandler handler) {
         this.process = process;
         this.stdinWriter = stdinWriter;
+        this.minecraft = minecraft;
+        this.handler = handler;
+    }
+
+    public ProgramHandler getHandler() {
+        return handler;
+    }
+
+    public void setStdinWriter(BufferedWriter stdinWriter) {
+        this.stdinWriter = stdinWriter;
+    }
+
+    public void setMinecraft(boolean minecraft) {
         this.minecraft = minecraft;
     }
 

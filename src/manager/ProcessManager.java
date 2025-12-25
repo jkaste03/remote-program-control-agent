@@ -7,14 +7,13 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import command.CommandAction;
-import detect.MinecraftDetector;
 import process.CommandBuilder;
 import process.ProcessKiller;
 import process.ProcessOutputLogger;
+import program.ProgramHandler;
+import program.ProgramHandlerFactory;
 import shortcut.ShortcutInfo;
 import shortcut.ShortcutResolver;
-import stop.StopStrategy;
-import stop.StopStrategyFactory;
 
 public class ProcessManager {
     private final Path shortcutFolder;
@@ -22,14 +21,14 @@ public class ProcessManager {
     private final CommandBuilder commandBuilder;
     private final ProcessKiller processKiller;
     private final Map<String, ManagedProcess> activeProcesses = new ConcurrentHashMap<>();
-    private final StopStrategyFactory stopStrategyFactory;
+    private final ProgramHandlerFactory programHandlerFactory;
 
     public ProcessManager(Path shortcutFolder) {
         this.shortcutFolder = shortcutFolder;
         this.shortcutResolver = new ShortcutResolver();
         this.commandBuilder = new CommandBuilder();
         this.processKiller = new ProcessKiller();
-        this.stopStrategyFactory = new StopStrategyFactory();
+        this.programHandlerFactory = new ProgramHandlerFactory();
     }
 
     public void handleCommand(String filename, CommandAction action) {
@@ -60,7 +59,7 @@ public class ProcessManager {
         }
 
         try {
-            boolean isMC = MinecraftDetector.isMinecraftServer(realFile);
+            ProgramHandler handler = programHandlerFactory.getHandler(filename, realFile);
 
             ProcessBuilder pb = commandBuilder.buildProcessBuilder(realFile, info.getArguments(),
                     info.getWorkingDirectory());
@@ -68,16 +67,13 @@ public class ProcessManager {
             pb.redirectErrorStream(true);
             Process p = pb.start();
 
-            BufferedWriter writer = null;
-            if (isMC) {
-                writer = new java.io.BufferedWriter(new java.io.OutputStreamWriter(p.getOutputStream()));
-            }
-
-            ManagedProcess mp = new ManagedProcess(p, writer, isMC);
+            ManagedProcess mp = new ManagedProcess(p, null, false, handler);
+            handler.onStart(p, mp);
+            
             activeProcesses.put(filename, mp);
 
             System.out.println(
-                    "Startet: " + realFile.getAbsolutePath() + (isMC ? " (Minecraft)" : "") + " PID=" + p.pid());
+                    "Startet: " + realFile.getAbsolutePath() + " PID=" + p.pid());
 
             // Start logger-tråd for stdout/err
             new Thread(new ProcessOutputLogger(mp, filename)).start();
@@ -102,12 +98,11 @@ public class ProcessManager {
             return;
         }
 
-        StopStrategy strategy = stopStrategyFactory.forProcess(mp);
+        System.out.println("Stopper " + filename + "...");
         try {
-            strategy.stop(mp, processKiller);
+            mp.getHandler().stop(mp, processKiller);
         } catch (Exception e) {
-            System.out.println("Feilet ved stopp med strategi " + strategy.getClass().getSimpleName() + ": " + e);
-            // Forsøk tvang ved feil
+            System.out.println("Feil ved stopp: " + e);
             processKiller.killProcessTree(p.pid(), true);
         } finally {
             activeProcesses.remove(filename);
