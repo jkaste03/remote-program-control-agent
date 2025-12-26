@@ -13,11 +13,12 @@ public class ShortcutResolver {
     public ShortcutInfo resolveShortcut(File shortcutFile) {
         try {
             String quoted = shortcutFile.getAbsolutePath().replace("\\", "\\\\");
-            String ps = "powershell -NoProfile -Command \"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('" +
+            String ps = "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('" +
                     quoted
-                    + "'); Write-Output $s.TargetPath; Write-Output $s.Arguments; Write-Output $s.WorkingDirectory\"";
+                    + "'); Write-Output $s.TargetPath; Write-Output $s.Arguments; Write-Output $s.WorkingDirectory";
 
-            Process proc = Runtime.getRuntime().exec(ps);
+            ProcessBuilder builder = new ProcessBuilder("powershell", "-NoProfile", "-Command", ps);
+            Process proc = builder.start();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
                 String target = reader.readLine();
                 String args = reader.readLine();
