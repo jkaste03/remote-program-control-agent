@@ -99,14 +99,22 @@ public class ProcessManager {
         }
 
         System.out.println("Stopper " + filename + "...");
-        try {
-            mp.getHandler().stop(mp, processKiller);
-        } catch (Exception e) {
-            System.out.println("Feil ved stopp: " + e);
-            processKiller.killProcessTree(p.pid(), true);
-        } finally {
-            activeProcesses.remove(filename);
-        }
+
+        // Start en ny tråd for å stoppe prosessen, slik at vi ikke blokkerer
+        // hovedtråden
+        // hvis prosessen henger (f.eks. pga "pause" i batch-script).
+        new Thread(() -> {
+            try {
+                mp.getHandler().stop(mp, processKiller);
+            } catch (Exception e) {
+                System.out.println("Feil ved stopp av " + filename + ": " + e);
+                processKiller.killProcessTree(p.pid(), true);
+            } finally {
+                // Fjern fra listen over aktive prosesser når den faktisk er stoppet (eller
+                // forsøkt stoppet)
+                activeProcesses.remove(filename, mp);
+            }
+        }).start();
     }
 
     // For eksternt bruk: sjekk om en prosess er aktiv

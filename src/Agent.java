@@ -16,7 +16,7 @@ public class Agent {
         manager.handleCommand(demoShortcut, CommandAction.START);
         manager.handleCommand("paintdotnet.exe.lnk", CommandAction.START);
 
-        // Simuler ventetid for demo (30s)
+        // Simuler ventetid for demo (70s)
         TimeUnit.SECONDS.sleep(70);
 
         manager.handleCommand(demoShortcut, CommandAction.STOP);

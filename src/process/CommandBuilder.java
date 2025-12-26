@@ -30,6 +30,14 @@ public class CommandBuilder {
                 String[] parts = splitArguments(arguments);
                 cmd.addAll(Arrays.asList(parts));
             }
+        } else if (lc.endsWith(".jar")) {
+            cmd.add("java");
+            cmd.add("-jar");
+            cmd.add(realFile.getAbsolutePath());
+            if (arguments != null && !arguments.isBlank()) {
+                String[] parts = splitArguments(arguments);
+                cmd.addAll(Arrays.asList(parts));
+            }
         } else {
             cmd.add(realFile.getAbsolutePath());
             if (arguments != null && !arguments.isBlank()) {
