@@ -40,19 +40,31 @@ public class ProcessManager {
     }
 
     public void startProgram(String filename) {
-        Path shortcutPath = shortcutFolder.resolve(filename);
-        if (!shortcutPath.toFile().exists()) {
-            System.out.println("Snarvei finnes ikke: " + shortcutPath);
+        Path path = shortcutFolder.resolve(filename);
+        File file = path.toFile();
+        if (!file.exists()) {
+            System.out.println("Filen finnes ikke: " + path);
             return;
         }
 
-        ShortcutInfo info = shortcutResolver.resolveShortcut(shortcutPath.toFile());
-        if (info == null || info.getTargetPath() == null || info.getTargetPath().isEmpty()) {
-            System.out.println("Kunne ikke lese snarveien: " + shortcutPath);
-            return;
+        File realFile;
+        String arguments = "";
+        String workingDirectory = "";
+
+        if (filename.toLowerCase().endsWith(".lnk")) {
+            ShortcutInfo info = shortcutResolver.resolveShortcut(file);
+            if (info == null || info.getTargetPath() == null || info.getTargetPath().isEmpty()) {
+                System.out.println("Kunne ikke lese snarveien: " + path);
+                return;
+            }
+            realFile = info.getTargetFile();
+            arguments = info.getArguments();
+            workingDirectory = info.getWorkingDirectory();
+        } else {
+            realFile = file;
+            workingDirectory = file.getParent();
         }
 
-        var realFile = info.getTargetFile();
         if (!realFile.exists()) {
             System.out.println("Målfil finnes ikke: " + realFile.getAbsolutePath());
             return;
@@ -61,8 +73,8 @@ public class ProcessManager {
         try {
             ProgramHandler handler = programHandlerFactory.getHandler(filename, realFile);
 
-            ProcessBuilder pb = commandBuilder.buildProcessBuilder(realFile, info.getArguments(),
-                    info.getWorkingDirectory());
+            ProcessBuilder pb = commandBuilder.buildProcessBuilder(realFile, arguments,
+                    workingDirectory);
 
             pb.redirectErrorStream(true);
             Process p = pb.start();

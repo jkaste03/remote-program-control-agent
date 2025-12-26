@@ -38,6 +38,23 @@ public class CommandBuilder {
                 String[] parts = splitArguments(arguments);
                 cmd.addAll(Arrays.asList(parts));
             }
+        } else if (lc.endsWith(".py")) {
+            cmd.add("python");
+            cmd.add(realFile.getAbsolutePath());
+            if (arguments != null && !arguments.isBlank()) {
+                String[] parts = splitArguments(arguments);
+                cmd.addAll(Arrays.asList(parts));
+            }
+        } else if (lc.endsWith(".ps1")) {
+            cmd.add("powershell");
+            cmd.add("-ExecutionPolicy");
+            cmd.add("Bypass");
+            cmd.add("-File");
+            cmd.add(realFile.getAbsolutePath());
+            if (arguments != null && !arguments.isBlank()) {
+                String[] parts = splitArguments(arguments);
+                cmd.addAll(Arrays.asList(parts));
+            }
         } else {
             cmd.add(realFile.getAbsolutePath());
             if (arguments != null && !arguments.isBlank()) {
