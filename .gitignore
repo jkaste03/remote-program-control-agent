@@ -3,3 +3,4 @@ refresh_token.txt
 agent.properties
 .vscode/
 *.class
+program-shortcuts/
