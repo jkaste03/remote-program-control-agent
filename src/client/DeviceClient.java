@@ -6,6 +6,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
+import java.util.List;
+
 public class DeviceClient {
     private final AuthService authService;
     private final HttpClient httpClient;
@@ -17,10 +19,12 @@ public class DeviceClient {
         this.baseUrl = AgentConfig.BASE_URL + "/remote-program-control/api/v1/devices";
     }
 
-    public DeviceResponse getDeviceDetails(long id) throws IOException, InterruptedException {
+    public DeviceResponse getDeviceDetails(long id, boolean includePrograms) throws IOException, InterruptedException {
         String token = authService.getAccessToken();
+        String url = baseUrl + "/" + id + "?includePrograms=" + includePrograms;
+
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/" + id))
+                .uri(URI.create(url))
                 .header("Authorization", "Bearer " + token)
                 .GET()
                 .build();
@@ -103,6 +107,25 @@ public class DeviceClient {
         }
     }
 
+    public void syncPrograms(long deviceId, List<String> filenames) throws IOException, InterruptedException {
+        String token = authService.getAccessToken();
+        String json = SimpleJson.createProgramSyncRequest(filenames);
+        String url = baseUrl + "/" + deviceId + "/programs/sync";
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new IOException("Failed to sync programs: " + response.statusCode() + " " + response.body());
+        }
+    }
+
     private DeviceResponse parseDeviceResponse(String json) {
         String idStr = SimpleJson.extractField(json, "id");
         String name = SimpleJson.extractField(json, "name");
@@ -110,9 +133,11 @@ public class DeviceClient {
         String macAddress = SimpleJson.extractField(json, "macAddress");
         String wolPortStr = SimpleJson.extractField(json, "wakeOnLanPort");
 
+        List<String> programFilenames = SimpleJson.extractArray(json, "programs", "filename");
+
         long id = idStr != null ? Long.parseLong(idStr) : 0;
         int wolPort = wolPortStr != null ? Integer.parseInt(wolPortStr) : 9; // Default to 9 if missing
 
-        return new DeviceResponse(id, name, publicIp, macAddress, wolPort);
+        return new DeviceResponse(id, name, publicIp, macAddress, wolPort, programFilenames);
     }
 }

@@ -8,6 +8,8 @@ import client.DeviceClient;
 import client.DeviceRegistrationService;
 import client.SseClient;
 import core.AgentController;
+import core.ProgramDirectoryWatcher;
+import core.ProgramSyncService;
 import core.ServerEventHandler;
 import manager.ProcessManager;
 
@@ -27,11 +29,21 @@ public class Agent {
         // Domain Services
         DeviceRegistrationService registrationService = new DeviceRegistrationService(deviceClient, inputHandler);
         AgentController agentController = new AgentController(processManager, deviceClient);
+        ProgramSyncService programSyncService = new ProgramSyncService(deviceClient, Paths.get(SHORTCUT_FOLDER));
+        ProgramDirectoryWatcher programWatcher = new ProgramDirectoryWatcher(Paths.get(SHORTCUT_FOLDER),
+                programSyncService::syncPrograms);
         ServerEventHandler eventHandler = new ServerEventHandler(agentController);
 
         // 2. Perform Device Registration / Update
         try {
             registrationService.initializeDevice();
+
+            // 3. Sync Programs (Source of Truth: Local Folder)
+            programSyncService.syncPrograms();
+
+            // 4. Start Monitoring for Changes
+            programWatcher.start();
+
         } catch (Exception e) {
             e.printStackTrace();
             System.err.println("Failed to initialize device. Exiting.");
