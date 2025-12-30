@@ -84,6 +84,25 @@ public class DeviceClient {
         }
     }
 
+    public void updateProgramStatus(long programId, String status) throws IOException, InterruptedException {
+        String token = authService.getAccessToken();
+        String json = "{\"status\": \"" + status + "\"}";
+        String url = AgentConfig.BASE_URL + "/remote-program-control/api/v1/programs/" + programId + "/status";
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + token)
+                .header("Content-Type", "application/json")
+                .PUT(HttpRequest.BodyPublishers.ofString(json))
+                .build();
+
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() != 200) {
+            throw new IOException("Failed to update program status: " + response.statusCode() + " " + response.body());
+        }
+    }
+
     private DeviceResponse parseDeviceResponse(String json) {
         String idStr = SimpleJson.extractField(json, "id");
         String name = SimpleJson.extractField(json, "name");

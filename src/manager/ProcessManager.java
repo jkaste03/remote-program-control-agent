@@ -32,20 +32,21 @@ public class ProcessManager {
         this.programHandlerFactory = new ProgramHandlerFactory();
     }
 
-    public void handleCommand(String filename, CommandAction action) {
+    public boolean handleCommand(String filename, CommandAction action) {
         if (action == CommandAction.START) {
-            startProgram(filename);
+            return startProgram(filename);
         } else if (action == CommandAction.STOP) {
-            stopProgram(filename);
+            return stopProgram(filename);
         }
+        return false;
     }
 
-    public void startProgram(String filename) {
+    public boolean startProgram(String filename) {
         Path path = shortcutFolder.resolve(filename);
         File file = path.toFile();
         if (!file.exists()) {
             System.out.println("Filen finnes ikke: " + path);
-            return;
+            return false;
         }
 
         File realFile;
@@ -56,7 +57,7 @@ public class ProcessManager {
             ShortcutInfo info = shortcutResolver.resolveShortcut(file);
             if (info == null || info.getTargetPath() == null || info.getTargetPath().isEmpty()) {
                 System.out.println("Kunne ikke lese snarveien: " + path);
-                return;
+                return false;
             }
             realFile = info.getTargetFile();
             arguments = info.getArguments();
@@ -68,7 +69,7 @@ public class ProcessManager {
 
         if (!realFile.exists()) {
             System.out.println("Målfil finnes ikke: " + realFile.getAbsolutePath());
-            return;
+            return false;
         }
 
         try {
@@ -90,25 +91,27 @@ public class ProcessManager {
 
             // Start logger-tråd for stdout/err
             new Thread(new ProcessOutputLogger(mp, filename)).start();
+            return true;
 
         } catch (IOException e) {
             System.out.println("Feil ved start: " + e);
             e.printStackTrace();
+            return false;
         }
     }
 
-    public void stopProgram(String filename) {
+    public boolean stopProgram(String filename) {
         ManagedProcess mp = activeProcesses.get(filename);
         if (mp == null) {
             System.out.println("Ingen aktiv prosess funnet for: " + filename);
-            return;
+            return true; // Allerede stoppet
         }
 
         Process p = mp.getProcess();
         if (!p.isAlive()) {
             activeProcesses.remove(filename);
             System.out.println("Prosessen er allerede avsluttet: " + filename);
-            return;
+            return true; // Allerede stoppet
         }
 
         System.out.println("Stopper " + filename + "...");
@@ -128,6 +131,8 @@ public class ProcessManager {
                 activeProcesses.remove(filename, mp);
             }
         }).start();
+
+        return true;
     }
 
     // For eksternt bruk: sjekk om en prosess er aktiv

@@ -7,7 +7,8 @@ import client.ConsoleInputHandler;
 import client.DeviceClient;
 import client.DeviceRegistrationService;
 import client.SseClient;
-import command.CommandAction;
+import core.AgentController;
+import core.ServerEventHandler;
 import manager.ProcessManager;
 
 public class Agent {
@@ -16,11 +17,17 @@ public class Agent {
     public static void main(String[] args) {
         // 1. Initialize Configuration and Services
         AgentConfig.loadConfig();
+
+        // Infrastructure / IO
         AuthService authService = new AuthService();
         DeviceClient deviceClient = new DeviceClient(authService);
         ConsoleInputHandler inputHandler = new ConsoleInputHandler();
-        DeviceRegistrationService registrationService = new DeviceRegistrationService(deviceClient, inputHandler);
         ProcessManager processManager = new ProcessManager(Paths.get(SHORTCUT_FOLDER));
+
+        // Domain Services
+        DeviceRegistrationService registrationService = new DeviceRegistrationService(deviceClient, inputHandler);
+        AgentController agentController = new AgentController(processManager, deviceClient);
+        ServerEventHandler eventHandler = new ServerEventHandler(agentController);
 
         // 2. Perform Device Registration / Update
         try {
@@ -32,22 +39,7 @@ public class Agent {
         }
 
         // 3. Start SSE Client
-        SseClient sseClient = new SseClient(AgentConfig.DEVICE_ID, authService, (event, data) -> {
-            System.out.println("Received event: " + event + ", data: " + data);
-            CommandAction action = null;
-            if ("START_PROGRAM".equals(event)) {
-                action = CommandAction.START;
-            } else if ("STOP_PROGRAM".equals(event)) {
-                action = CommandAction.STOP;
-            }
-
-            if (action != null) {
-                processManager.handleCommand(data, action);
-            } else {
-                System.out.println("Unknown event: " + event);
-            }
-        });
-
+        SseClient sseClient = new SseClient(AgentConfig.DEVICE_ID, authService, eventHandler);
         sseClient.start();
 
         // 4. Keep the application running
