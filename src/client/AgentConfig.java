@@ -29,11 +29,6 @@ public class AgentConfig {
             if (deviceIdStr != null) {
                 DEVICE_ID = Long.parseLong(deviceIdStr);
             }
-            DEVICE_NAME = props.getProperty("device.name");
-            String wolPortStr = props.getProperty("device.wol_port");
-            if (wolPortStr != null) {
-                WOL_PORT = Integer.parseInt(wolPortStr);
-            }
         } catch (IOException e) {
             System.out.println("No config file found, using defaults.");
         }
@@ -42,12 +37,6 @@ public class AgentConfig {
     public static void saveConfig() {
         Properties props = new Properties();
         props.setProperty("device.id", String.valueOf(DEVICE_ID));
-        if (DEVICE_NAME != null) {
-            props.setProperty("device.name", DEVICE_NAME);
-        }
-        if (WOL_PORT != -1) {
-            props.setProperty("device.wol_port", String.valueOf(WOL_PORT));
-        }
         try (FileOutputStream out = new FileOutputStream(CONFIG_FILE)) {
             props.store(out, "Agent Configuration");
         } catch (IOException e) {

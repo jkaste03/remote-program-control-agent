@@ -20,33 +20,11 @@ public class DeviceRegistrationService {
             throw new RuntimeException("Could not determine MAC address or Public IP.");
         }
 
-        // 1. Ensure configuration is complete (Name and Port)
-        ensureConfiguration();
-
-        // 2. Register or Update device on server
+        // 1. Register or Update device on server
         if (AgentConfig.DEVICE_ID != -1) {
             handleExistingDevice(macAddress, publicIp);
         } else {
             handleNewDevice(macAddress, publicIp);
-        }
-    }
-
-    private void ensureConfiguration() {
-        boolean configChanged = false;
-
-        if (AgentConfig.DEVICE_NAME == null) {
-            String defaultName = getHostname();
-            AgentConfig.DEVICE_NAME = inputHandler.askForDeviceName(defaultName);
-            configChanged = true;
-        }
-
-        if (AgentConfig.WOL_PORT == -1) {
-            AgentConfig.WOL_PORT = inputHandler.askForWolPort(9);
-            configChanged = true;
-        }
-
-        if (configChanged) {
-            AgentConfig.saveConfig();
         }
     }
 
@@ -56,18 +34,22 @@ public class DeviceRegistrationService {
 
         if (device == null) {
             System.out.println("Device not found on server. Re-registering...");
-            registerDevice(macAddress, publicIp);
+            handleNewDevice(macAddress, publicIp);
         } else {
             System.out.println("Device found: " + device.getName());
 
-            // Check if local config differs from server or if network details changed
-            boolean needsUpdate = !macAddress.equals(device.getMacAddress()) ||
-                    !publicIp.equals(device.getPublicIp()) ||
-                    !AgentConfig.DEVICE_NAME.equals(device.getName()) ||
-                    AgentConfig.WOL_PORT != device.getWakeOnLanPort();
+            // Sync local config from server (Source of Truth for Name and Port)
+            AgentConfig.DEVICE_NAME = device.getName();
+            AgentConfig.WOL_PORT = device.getWakeOnLanPort();
 
-            if (needsUpdate) {
-                System.out.println("Device details changed. Updating server...");
+            // Check if network details changed (Source of Truth is Local Agent)
+            boolean networkChanged = !macAddress.equals(device.getMacAddress()) ||
+                    !publicIp.equals(device.getPublicIp());
+
+            if (networkChanged) {
+                System.out.println("Network details changed. Updating server...");
+                // We send back the name and port we just got from the server, ensuring they
+                // don't change
                 deviceClient.updateDevice(AgentConfig.DEVICE_ID, AgentConfig.DEVICE_NAME, publicIp,
                         AgentConfig.WOL_PORT, macAddress);
                 System.out.println("Device updated.");
@@ -79,6 +61,12 @@ public class DeviceRegistrationService {
 
     private void handleNewDevice(String macAddress, String publicIp) throws Exception {
         System.out.println("No device ID configured. Registering new device...");
+
+        // For new devices, we need to ask for initial configuration
+        String defaultName = getHostname();
+        AgentConfig.DEVICE_NAME = inputHandler.askForDeviceName(defaultName);
+        AgentConfig.WOL_PORT = inputHandler.askForWolPort(9);
+
         registerDevice(macAddress, publicIp);
     }
 
@@ -86,7 +74,7 @@ public class DeviceRegistrationService {
         DeviceResponse newDevice = deviceClient.createDevice(AgentConfig.DEVICE_NAME, publicIp, AgentConfig.WOL_PORT,
                 macAddress);
         AgentConfig.DEVICE_ID = newDevice.getId();
-        AgentConfig.saveConfig();
+        AgentConfig.saveConfig(); // Only saves ID now
         System.out.println("Registered new device with ID: " + AgentConfig.DEVICE_ID);
     }
 
