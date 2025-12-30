@@ -1,0 +1,94 @@
+package client;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.function.BiConsumer;
+import java.util.stream.Stream;
+
+public class SseClient {
+    private final HttpClient client;
+    private final String baseUrl;
+    private final long deviceId;
+    private final AuthService authService;
+    private final BiConsumer<String, String> eventHandler;
+
+    public SseClient(long deviceId, AuthService authService, BiConsumer<String, String> eventHandler) {
+        this.client = HttpClient.newHttpClient();
+        this.baseUrl = AgentConfig.BASE_URL;
+        this.deviceId = deviceId;
+        this.authService = authService;
+        this.eventHandler = eventHandler;
+    }
+
+    public void start() {
+        connect();
+    }
+
+    private void connect() {
+        try {
+            String token = authService.getAccessToken();
+            String url = baseUrl + "/remote-program-control/api/v1/devices/" + deviceId + "/events";
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Accept", "text/event-stream")
+                    .header("Authorization", "Bearer " + token)
+                    .build();
+
+            System.out.println("Connecting to SSE endpoint: " + url);
+
+            client.sendAsync(request, HttpResponse.BodyHandlers.ofLines())
+                    .thenAccept(this::processResponse)
+                    .exceptionally(e -> {
+                        System.err.println("Connection failed: " + e.getMessage());
+                        retry();
+                        return null;
+                    });
+
+        } catch (Exception e) {
+            System.err.println("Error getting token or connecting: " + e.getMessage());
+            retry();
+        }
+    }
+
+    private void retry() {
+        try {
+            Thread.sleep(5000); // Retry delay
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
+        connect(); // Reconnect
+    }
+
+    private void processResponse(HttpResponse<Stream<String>> response) {
+        if (response.statusCode() != 200) {
+            System.err.println("Server returned status: " + response.statusCode());
+            retry();
+            return;
+        }
+
+        System.out.println("Connected to SSE stream.");
+
+        final StringBuilder dataBuffer = new StringBuilder();
+        final String[] eventName = { null };
+
+        response.body().forEach(line -> {
+            if (line.startsWith("event:")) {
+                eventName[0] = line.substring(6).trim();
+            } else if (line.startsWith("data:")) {
+                dataBuffer.append(line.substring(5).trim());
+            } else if (line.isEmpty()) {
+                if (eventName[0] != null && dataBuffer.length() > 0) {
+                    eventHandler.accept(eventName[0], dataBuffer.toString());
+                }
+                eventName[0] = null;
+                dataBuffer.setLength(0);
+            }
+        });
+
+        System.out.println("Stream closed. Reconnecting...");
+        retry();
+    }
+}
