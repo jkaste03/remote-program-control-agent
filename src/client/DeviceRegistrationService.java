@@ -3,6 +3,9 @@ package client;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import java.util.Collections;
+import java.util.List;
+
 public class DeviceRegistrationService {
     private final DeviceClient deviceClient;
     private final ConsoleInputHandler inputHandler;
@@ -12,7 +15,7 @@ public class DeviceRegistrationService {
         this.inputHandler = inputHandler;
     }
 
-    public void initializeDevice() throws Exception {
+    public List<String> initializeDevice() throws Exception {
         String macAddress = NetworkUtils.getMacAddress();
         String publicIp = NetworkUtils.getPublicIp();
 
@@ -22,19 +25,20 @@ public class DeviceRegistrationService {
 
         // 1. Register or Update device on server
         if (AgentConfig.DEVICE_ID != -1) {
-            handleExistingDevice(macAddress, publicIp);
+            return handleExistingDevice(macAddress, publicIp);
         } else {
-            handleNewDevice(macAddress, publicIp);
+            return handleNewDevice(macAddress, publicIp);
         }
     }
 
-    private void handleExistingDevice(String macAddress, String publicIp) throws Exception {
+    private List<String> handleExistingDevice(String macAddress, String publicIp) throws Exception {
         System.out.println("Checking existing device with ID: " + AgentConfig.DEVICE_ID);
-        DeviceResponse device = deviceClient.getDeviceDetails(AgentConfig.DEVICE_ID);
+        // Fetch device details INCLUDING programs
+        DeviceResponse device = deviceClient.getDeviceDetails(AgentConfig.DEVICE_ID, true);
 
         if (device == null) {
             System.out.println("Device not found on server. Re-registering...");
-            handleNewDevice(macAddress, publicIp);
+            return handleNewDevice(macAddress, publicIp);
         } else {
             System.out.println("Device found: " + device.getName());
 
@@ -56,10 +60,12 @@ public class DeviceRegistrationService {
             } else {
                 System.out.println("Device details are up to date.");
             }
+
+            return device.getProgramFilenames() != null ? device.getProgramFilenames() : Collections.emptyList();
         }
     }
 
-    private void handleNewDevice(String macAddress, String publicIp) throws Exception {
+    private List<String> handleNewDevice(String macAddress, String publicIp) throws Exception {
         System.out.println("No device ID configured. Registering new device...");
 
         // For new devices, we need to ask for initial configuration
@@ -67,15 +73,16 @@ public class DeviceRegistrationService {
         AgentConfig.DEVICE_NAME = inputHandler.askForDeviceName(defaultName);
         AgentConfig.WOL_PORT = inputHandler.askForWolPort(9);
 
-        registerDevice(macAddress, publicIp);
+        return registerDevice(macAddress, publicIp);
     }
 
-    private void registerDevice(String macAddress, String publicIp) throws Exception {
+    private List<String> registerDevice(String macAddress, String publicIp) throws Exception {
         DeviceResponse newDevice = deviceClient.createDevice(AgentConfig.DEVICE_NAME, publicIp, AgentConfig.WOL_PORT,
                 macAddress);
         AgentConfig.DEVICE_ID = newDevice.getId();
         AgentConfig.saveConfig(); // Only saves ID now
         System.out.println("Registered new device with ID: " + AgentConfig.DEVICE_ID);
+        return Collections.emptyList(); // New device has no programs
     }
 
     private String getHostname() {

@@ -1,4 +1,5 @@
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 
 import client.AgentConfig;
@@ -36,10 +37,10 @@ public class Agent {
 
         // 2. Perform Device Registration / Update
         try {
-            registrationService.initializeDevice();
+            List<String> serverPrograms = registrationService.initializeDevice();
 
             // 3. Sync Programs (Source of Truth: Local Folder)
-            programSyncService.syncPrograms();
+            programSyncService.syncPrograms(serverPrograms);
 
             // 4. Start Monitoring for Changes
             programWatcher.start();

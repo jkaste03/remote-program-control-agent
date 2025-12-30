@@ -14,12 +14,17 @@ import client.DeviceResponse;
 public class ProgramSyncService {
     private final DeviceClient deviceClient;
     private final Path shortcutFolder;
+    private List<String> lastKnownServerPrograms = new ArrayList<>();
 
     public ProgramSyncService(DeviceClient deviceClient, Path shortcutFolder) {
         this.deviceClient = deviceClient;
         this.shortcutFolder = shortcutFolder;
     }
 
+    /**
+     * Called by the directory watcher when changes are detected.
+     * Uses the cached server state to avoid unnecessary API calls.
+     */
     public void syncPrograms() {
         try {
             System.out.println("Checking for program synchronization...");
@@ -27,25 +32,16 @@ public class ProgramSyncService {
             // 1. Get local programs (Source of Truth)
             List<String> localPrograms = getLocalPrograms();
 
-            // 2. Get server programs
-            DeviceResponse device = deviceClient.getDeviceDetails(AgentConfig.DEVICE_ID, true);
-            if (device == null) {
-                System.err.println("Could not fetch device details for sync.");
-                return;
-            }
-
-            List<String> serverPrograms = device.getProgramFilenames();
-            if (serverPrograms == null) {
-                serverPrograms = Collections.emptyList();
-            }
-
-            // 3. Compare
-            if (!areProgramListsEqual(localPrograms, serverPrograms)) {
+            // 2. Compare with cached server state
+            if (!areProgramListsEqual(localPrograms, lastKnownServerPrograms)) {
                 System.out.println("Program lists differ. Syncing with server...");
                 System.out.println("Local: " + localPrograms);
-                System.out.println("Server: " + serverPrograms);
+                System.out.println("Server (Cached): " + lastKnownServerPrograms);
 
                 deviceClient.syncPrograms(AgentConfig.DEVICE_ID, localPrograms);
+
+                // Update cache after successful sync
+                this.lastKnownServerPrograms = new ArrayList<>(localPrograms);
                 System.out.println("Programs synced successfully.");
             } else {
                 System.out.println("Programs are in sync.");
@@ -55,6 +51,17 @@ public class ProgramSyncService {
             System.err.println("Failed to sync programs: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    /**
+     * Called at startup with the initial state from the server.
+     */
+    public void syncPrograms(List<String> serverPrograms) {
+        if (serverPrograms == null) {
+            serverPrograms = Collections.emptyList();
+        }
+        this.lastKnownServerPrograms = new ArrayList<>(serverPrograms);
+        syncPrograms(); // Run the check immediately
     }
 
     private List<String> getLocalPrograms() {
