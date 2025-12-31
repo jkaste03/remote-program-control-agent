@@ -55,7 +55,16 @@ public class CommandBuilder {
                 String[] parts = splitArguments(arguments);
                 cmd.addAll(Arrays.asList(parts));
             }
+        } else if (lc.endsWith(".sh")) {
+            // Linux/Mac Shell Script
+            cmd.add("/bin/bash");
+            cmd.add(realFile.getAbsolutePath());
+            if (arguments != null && !arguments.isBlank()) {
+                String[] parts = splitArguments(arguments);
+                cmd.addAll(Arrays.asList(parts));
+            }
         } else {
+            // Generic executable (Binary, or script with shebang + execute permission)
             cmd.add(realFile.getAbsolutePath());
             if (arguments != null && !arguments.isBlank()) {
                 String[] parts = splitArguments(arguments);

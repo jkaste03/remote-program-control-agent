@@ -15,7 +15,8 @@ import core.ServerEventHandler;
 import manager.ProcessManager;
 
 public class Agent {
-    private static final String SHORTCUT_FOLDER = "C:\\RemoteServerControlAgent\\program-shortcuts";
+    // Relative path: "program-shortcuts" in the current working directory
+    private static final String SHORTCUT_FOLDER = "program-shortcuts";
 
     public static void main(String[] args) {
         // 1. Initialize Configuration and Services

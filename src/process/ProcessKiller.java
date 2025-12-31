@@ -1,39 +1,37 @@
 package process;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.stream.Stream;
 
 public class ProcessKiller {
 
     /**
-     * Kjører Windows taskkill for å lukke prosess-treet. Hvis force==false så
-     * sendes kun /T (WM_CLOSE)
+     * Kills the process and its descendants using the Java ProcessHandle API.
+     * This is cross-platform (Windows, Linux, macOS).
      */
     public void killProcessTree(long pid, boolean force) {
-        try {
-            List<String> cmd = new ArrayList<>();
-            cmd.add("taskkill");
-            cmd.add("/PID");
-            cmd.add(String.valueOf(pid));
-            if (force) {
-                cmd.add("/F");
-                cmd.add("/T");
-            } else {
-                cmd.add("/T");
-            }
+        ProcessHandle.of(pid).ifPresent(handle -> {
+            // 1. Get all descendants (children, grandchildren, etc.)
+            Stream<ProcessHandle> descendants = handle.descendants();
 
-            ProcessBuilder pb = new ProcessBuilder(cmd);
-            Process taskkill = pb.start();
-            try (BufferedReader r = new BufferedReader(new InputStreamReader(taskkill.getInputStream()))) {
-                String l;
-                while ((l = r.readLine()) != null)
-                    System.out.println(l);
+            // 2. Kill descendants first
+            descendants.forEach(child -> {
+                killSingleProcess(child, force);
+            });
+
+            // 3. Kill the parent process
+            killSingleProcess(handle, force);
+        });
+    }
+
+    private void killSingleProcess(ProcessHandle handle, boolean force) {
+        try {
+            if (force) {
+                handle.destroyForcibly();
+            } else {
+                handle.destroy();
             }
-            taskkill.waitFor();
         } catch (Exception e) {
-            System.out.println("Kunne ikke kjøre taskkill: " + e);
+            System.err.println("Failed to kill process " + handle.pid() + ": " + e.getMessage());
         }
     }
 }
