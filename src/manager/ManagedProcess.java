@@ -105,7 +105,7 @@ public class ManagedProcess {
                 processHandle.onExit().get(timeout, unit);
                 return true;
             } catch (ExecutionException e) {
-                throw new RuntimeException(e);
+                throw new IllegalStateException("Failed while waiting for process exit", e);
             } catch (TimeoutException e) {
                 return false;
             }
