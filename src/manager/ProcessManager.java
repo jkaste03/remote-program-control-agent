@@ -147,14 +147,29 @@ public class ProcessManager {
         try (BufferedReader reader = Files.newBufferedReader(stateFilePath, StandardCharsets.UTF_8)) {
             String line;
             while ((line = reader.readLine()) != null) {
-                handleProcessLine(line);
+                handleProcessLine(line, false);
             }
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Could not load process list", e);
         }
     }
 
-    private void handleProcessLine(String line) {
+    public void reconcilePersistedProcesses() {
+        if (!Files.exists(stateFilePath)) {
+            return;
+        }
+
+        try (BufferedReader reader = Files.newBufferedReader(stateFilePath, StandardCharsets.UTF_8)) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                handleProcessLine(line, true);
+            }
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Could not reconcile process list", e);
+        }
+    }
+
+    private void handleProcessLine(String line, boolean notifyOnMissing) {
         String[] parts = line.split("=", 2);
         if (parts.length != 2) {
             return;
@@ -164,15 +179,18 @@ public class ProcessManager {
             String[] pidAndProgram = parts[1].split(":", 2);
             long pid = Long.parseLong(pidAndProgram[0]);
             long programId = pidAndProgram.length == 2 ? parseLongOrDefault(pidAndProgram[1], -1) : -1;
-            restoreProcess(filename, pid, programId);
+            restoreProcess(filename, pid, programId, notifyOnMissing);
         } catch (NumberFormatException e) {
             // Ignore invalid lines
         }
     }
 
-    private void restoreProcess(String filename, long pid, long programId) {
+    private void restoreProcess(String filename, long pid, long programId, boolean notifyOnMissing) {
         ProcessHandle handle = ProcessHandle.of(pid).orElse(null);
         if (handle == null || !handle.isAlive()) {
+            if (notifyOnMissing && exitListener != null && programId > 0) {
+                exitListener.onProcessExit(programId, filename);
+            }
             return;
         }
 

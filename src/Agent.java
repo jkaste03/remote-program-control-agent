@@ -47,6 +47,10 @@ public class Agent {
             }
         });
 
+        // After listener is registered, reconcile persisted processes to detect missing
+        // ones
+        processManager.reconcilePersistedProcesses();
+
         // 2. Perform Device Registration / Update
         try {
             List<String> serverPrograms = registrationService.initializeDevice();
