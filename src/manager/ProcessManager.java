@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.concurrent.CompletableFuture;
 
 import command.CommandAction;
 import process.CommandBuilder;
@@ -30,6 +31,7 @@ public class ProcessManager {
     private final Map<String, ManagedProcess> activeProcesses = new ConcurrentHashMap<>();
     private final ProgramHandlerFactory programHandlerFactory;
     private final Path stateFilePath;
+    private ProcessExitListener exitListener;
     private static final String STATE_FILE_NAME = "active_processes.txt";
     private static final boolean WINDOWS = System.getProperty("os.name").toLowerCase().contains("win");
     private static final Logger LOGGER = Logger.getLogger(ProcessManager.class.getName());
@@ -44,9 +46,9 @@ public class ProcessManager {
         loadProcessList();
     }
 
-    public boolean handleCommand(String filename, CommandAction action) {
+    public boolean handleCommand(long programId, String filename, CommandAction action) {
         if (action == CommandAction.START) {
-            return startProgram(filename);
+            return startProgram(programId, filename);
         } else if (action == CommandAction.STOP) {
             stopProgram(filename);
             return true;
@@ -54,7 +56,7 @@ public class ProcessManager {
         return false;
     }
 
-    public boolean startProgram(String filename) {
+    public boolean startProgram(long programId, String filename) {
         ProgramTarget target = resolveProgramTarget(filename);
         if (target == null || !target.realFile.exists()) {
             return false;
@@ -69,7 +71,7 @@ public class ProcessManager {
             pb.redirectErrorStream(true);
             Process p = pb.start();
 
-            ManagedProcess mp = new ManagedProcess(p, null, false, handler);
+            ManagedProcess mp = new ManagedProcess(p, null, false, handler, programId);
             handler.onStart(p, mp);
 
             registerActiveProcess(filename, mp);
@@ -106,6 +108,7 @@ public class ProcessManager {
         // hvis prosessen henger (f.eks. pga "pause" i batch-script).
         new Thread(() -> {
             try {
+                mp.markStoppedByAgent();
                 mp.getHandler().stop(mp, processKiller);
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, "Error while stopping " + filename, e);
@@ -128,7 +131,8 @@ public class ProcessManager {
         try (PrintWriter writer = new PrintWriter(
                 new BufferedWriter(Files.newBufferedWriter(stateFilePath, StandardCharsets.UTF_8)))) {
             for (Map.Entry<String, ManagedProcess> entry : activeProcesses.entrySet()) {
-                writer.println(entry.getKey() + "=" + entry.getValue().pid());
+                ManagedProcess mp = entry.getValue();
+                writer.println(entry.getKey() + "=" + mp.pid() + ":" + mp.getProgramId());
             }
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Could not save process list", e);
@@ -157,14 +161,16 @@ public class ProcessManager {
         }
         String filename = parts[0];
         try {
-            long pid = Long.parseLong(parts[1]);
-            restoreProcess(filename, pid);
+            String[] pidAndProgram = parts[1].split(":", 2);
+            long pid = Long.parseLong(pidAndProgram[0]);
+            long programId = pidAndProgram.length == 2 ? parseLongOrDefault(pidAndProgram[1], -1) : -1;
+            restoreProcess(filename, pid, programId);
         } catch (NumberFormatException e) {
             // Ignore invalid lines
         }
     }
 
-    private void restoreProcess(String filename, long pid) {
+    private void restoreProcess(String filename, long pid, long programId) {
         ProcessHandle handle = ProcessHandle.of(pid).orElse(null);
         if (handle == null || !handle.isAlive()) {
             return;
@@ -174,7 +180,7 @@ public class ProcessManager {
         File targetFile = target != null ? target.realFile : shortcutFolder.resolve(filename).toFile();
 
         ProgramHandler handler = programHandlerFactory.getHandler(filename, targetFile);
-        ManagedProcess mp = new ManagedProcess(pid, false, handler);
+        ManagedProcess mp = new ManagedProcess(pid, false, handler, programId);
 
         if (handler instanceof program.MinecraftProgramHandler) {
             mp.setMinecraft(true);
@@ -186,12 +192,29 @@ public class ProcessManager {
 
     private void registerActiveProcess(String filename, ManagedProcess mp) {
         activeProcesses.put(filename, mp);
+        watchProcess(filename, mp);
         saveProcessList();
     }
 
     private void removeActiveProcess(String filename, ManagedProcess mp) {
-        activeProcesses.remove(filename, mp);
-        saveProcessList();
+        boolean removed = activeProcesses.remove(filename, mp);
+        if (removed) {
+            saveProcessList();
+        }
+    }
+
+    private void watchProcess(String filename, ManagedProcess mp) {
+        ProcessHandle handle = mp.getProcessHandle();
+        if (handle == null) {
+            return;
+        }
+        CompletableFuture<ProcessHandle> onExit = handle.onExit();
+        onExit.thenRun(() -> {
+            removeActiveProcess(filename, mp);
+            if (exitListener != null && !mp.isStoppedByAgent() && mp.getProgramId() > 0) {
+                exitListener.onProcessExit(mp.getProgramId(), filename);
+            }
+        });
     }
 
     private ProgramTarget resolveProgramTarget(String filename) {
@@ -225,6 +248,23 @@ public class ProcessManager {
             this.realFile = realFile;
             this.arguments = arguments;
             this.workingDirectory = workingDirectory;
+        }
+    }
+
+    public void setProcessExitListener(ProcessExitListener listener) {
+        this.exitListener = listener;
+    }
+
+    @FunctionalInterface
+    public interface ProcessExitListener {
+        void onProcessExit(long programId, String filename);
+    }
+
+    private long parseLongOrDefault(String value, long defaultValue) {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            return defaultValue;
         }
     }
 }

@@ -14,7 +14,7 @@ public class AgentController {
     }
 
     public void handleProgramCommand(long programId, String filename, CommandAction action) {
-        boolean success = processManager.handleCommand(filename, action);
+        boolean success = processManager.handleCommand(programId, filename, action);
         String status = determineStatus(action, success);
 
         try {

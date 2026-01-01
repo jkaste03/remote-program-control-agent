@@ -13,21 +13,26 @@ public class ManagedProcess {
     private BufferedWriter stdinWriter; // kan være null
     private boolean minecraft;
     private ProgramHandler handler;
+    private long programId;
+    private boolean stoppedByAgent;
 
-    public ManagedProcess(Process process, BufferedWriter stdinWriter, boolean minecraft, ProgramHandler handler) {
+    public ManagedProcess(Process process, BufferedWriter stdinWriter, boolean minecraft, ProgramHandler handler,
+            long programId) {
         this.process = process;
         this.processHandle = process.toHandle();
         this.stdinWriter = stdinWriter;
         this.minecraft = minecraft;
         this.handler = handler;
+        this.programId = programId;
     }
 
-    public ManagedProcess(long pid, boolean minecraft, ProgramHandler handler) {
+    public ManagedProcess(long pid, boolean minecraft, ProgramHandler handler, long programId) {
         this.process = null;
         this.processHandle = ProcessHandle.of(pid).orElse(null);
         this.stdinWriter = null;
         this.minecraft = minecraft;
         this.handler = handler;
+        this.programId = programId;
     }
 
     public ProgramHandler getHandler() {
@@ -52,6 +57,26 @@ public class ManagedProcess {
 
     public boolean isMinecraft() {
         return minecraft;
+    }
+
+    public long getProgramId() {
+        return programId;
+    }
+
+    public void setProgramId(long programId) {
+        this.programId = programId;
+    }
+
+    public boolean isStoppedByAgent() {
+        return stoppedByAgent;
+    }
+
+    public void markStoppedByAgent() {
+        this.stoppedByAgent = true;
+    }
+
+    public ProcessHandle getProcessHandle() {
+        return processHandle;
     }
 
     public long pid() {

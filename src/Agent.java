@@ -38,6 +38,15 @@ public class Agent {
                 programSyncService::syncPrograms);
         ServerEventHandler eventHandler = new ServerEventHandler(agentController);
 
+        processManager.setProcessExitListener((programId, filename) -> {
+            try {
+                deviceClient.updateProgramStatus(programId, "STOPPED");
+                System.out.println("Detected unexpected stop for program id=" + programId + " (" + filename + ")");
+            } catch (Exception e) {
+                System.err.println("Failed to report program stop for id=" + programId + ": " + e.getMessage());
+            }
+        });
+
         // 2. Perform Device Registration / Update
         try {
             List<String> serverPrograms = registrationService.initializeDevice();
