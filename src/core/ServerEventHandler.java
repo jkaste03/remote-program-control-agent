@@ -14,6 +14,10 @@ public class ServerEventHandler implements BiConsumer<String, String> {
 
     @Override
     public void accept(String event, String data) {
+        if ("PING".equals(event)) {
+            return; // ignore noisy heartbeat events
+        }
+
         System.out.println("Received event: " + event + ", data: " + data);
 
         CommandAction action = null;
