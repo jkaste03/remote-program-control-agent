@@ -1,1 +1,1 @@
-paintdotnet.exe.lnk=23556:5
+start.bat.lnk=5424:5

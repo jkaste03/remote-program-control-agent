@@ -1,5 +1,7 @@
 package core;
 
+import java.util.concurrent.CompletableFuture;
+
 import client.DeviceClient;
 import command.CommandAction;
 import manager.ProcessManager;
@@ -14,15 +16,19 @@ public class AgentController {
     }
 
     public void handleProgramCommand(long programId, String filename, CommandAction action) {
-        boolean success = processManager.handleCommand(programId, filename, action);
-        String status = determineStatus(action, success);
+        CompletableFuture<Boolean> result = processManager.handleCommand(programId, filename, action);
 
-        try {
-            deviceClient.updateProgramStatus(programId, status);
-            System.out.println("Updated program status to: " + status);
-        } catch (Exception e) {
-            System.err.println("Failed to update program status: " + e.getMessage());
-        }
+        result.whenComplete((success, error) -> {
+            boolean ok = error == null && Boolean.TRUE.equals(success);
+            String status = determineStatus(action, ok);
+
+            try {
+                deviceClient.updateProgramStatus(programId, status);
+                System.out.println("Updated program status to: " + status);
+            } catch (Exception e) {
+                System.err.println("Failed to update program status: " + e.getMessage());
+            }
+        });
     }
 
     private String determineStatus(CommandAction action, boolean success) {

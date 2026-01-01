@@ -46,14 +46,13 @@ public class ProcessManager {
         loadProcessList();
     }
 
-    public boolean handleCommand(long programId, String filename, CommandAction action) {
+    public CompletableFuture<Boolean> handleCommand(long programId, String filename, CommandAction action) {
         if (action == CommandAction.START) {
-            return startProgram(programId, filename);
+            return CompletableFuture.completedFuture(startProgram(programId, filename));
         } else if (action == CommandAction.STOP) {
-            stopProgram(filename);
-            return true;
+            return stopProgram(filename);
         }
-        return false;
+        return CompletableFuture.completedFuture(false);
     }
 
     public boolean startProgram(long programId, String filename) {
@@ -88,18 +87,22 @@ public class ProcessManager {
         }
     }
 
-    public void stopProgram(String filename) {
+    public CompletableFuture<Boolean> stopProgram(String filename) {
         ManagedProcess mp = activeProcesses.get(filename);
         if (mp == null) {
             LOGGER.log(Level.INFO, () -> "No active process found for: " + filename);
-            return; // Allerede stoppet
+            return CompletableFuture.completedFuture(true); // Already stopped
         }
 
         if (!mp.isAlive()) {
             activeProcesses.remove(filename);
             LOGGER.log(Level.INFO, () -> "Process is already terminated: " + filename);
-            return; // Allerede stoppet
+            return CompletableFuture.completedFuture(true); // Already stopped
         }
+
+        CompletableFuture<Boolean> stopFuture = new CompletableFuture<>();
+        CompletableFuture<ProcessHandle> onExitFuture = mp.getProcessHandle() != null ? mp.getProcessHandle().onExit()
+                : null;
 
         LOGGER.log(Level.INFO, () -> "Stopping " + filename + "...");
 
@@ -113,12 +116,22 @@ public class ProcessManager {
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, "Error while stopping " + filename, e);
                 processKiller.killProcessTree(mp.pid(), true);
-            } finally {
-                // Fjern fra listen over aktive prosesser når den faktisk er stoppet (eller
-                // forsøkt stoppet)
-                removeActiveProcess(filename, mp);
             }
         }).start();
+
+        if (onExitFuture != null) {
+            onExitFuture.whenComplete((handle, error) -> {
+                if (error != null) {
+                    stopFuture.completeExceptionally(error);
+                } else {
+                    stopFuture.complete(true);
+                }
+            });
+        } else {
+            stopFuture.complete(true);
+        }
+
+        return stopFuture;
     }
 
     // For eksternt bruk: sjekk om en prosess er aktiv
