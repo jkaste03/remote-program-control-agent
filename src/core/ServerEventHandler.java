@@ -1,11 +1,15 @@
 package core;
 
 import java.util.function.BiConsumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import client.SimpleJson;
 import command.CommandAction;
 
 public class ServerEventHandler implements BiConsumer<String, String> {
+    private static final Logger LOGGER = Logger.getLogger(ServerEventHandler.class.getName());
+
     private final AgentController agentController;
 
     public ServerEventHandler(AgentController agentController) {
@@ -18,7 +22,7 @@ public class ServerEventHandler implements BiConsumer<String, String> {
             return; // ignore noisy heartbeat events
         }
 
-        System.out.println("Received event: " + event + ", data: " + data);
+        LOGGER.log(Level.INFO, "Received event: {0}, data: {1}", new Object[] { event, data });
 
         CommandAction action = null;
         if ("START_PROGRAM".equals(event)) {
@@ -30,7 +34,7 @@ public class ServerEventHandler implements BiConsumer<String, String> {
         if (action != null) {
             handleCommandEvent(data, action);
         } else {
-            System.out.println("Unknown event: " + event);
+            LOGGER.log(Level.WARNING, "Unknown event: {0}", event);
         }
     }
 
@@ -42,7 +46,7 @@ public class ServerEventHandler implements BiConsumer<String, String> {
         if (filename != null && programId != -1) {
             agentController.handleProgramCommand(programId, filename, action);
         } else {
-            System.err.println("Invalid event data: " + data);
+            LOGGER.log(Level.WARNING, "Invalid event data: {0}", data);
         }
     }
 }
