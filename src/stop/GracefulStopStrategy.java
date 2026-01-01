@@ -17,8 +17,8 @@ public class GracefulStopStrategy implements StopStrategy {
         System.out.println("Prøver å lukke prosess grasiøst (PID=" + mp.pid() + ")");
         killer.killProcessTree(mp.pid(), false);
 
-        if (mp.getProcess().isAlive()) {
-            if (!mp.getProcess().waitFor(waitSeconds, TimeUnit.SECONDS)) {
+        if (mp.isAlive()) {
+            if (!mp.waitFor(waitSeconds, TimeUnit.SECONDS)) {
                 System.out.println("Prosessen responderte ikke innen " + waitSeconds + "s — tvinger avslutning.");
                 killer.killProcessTree(mp.pid(), true);
             }

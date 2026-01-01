@@ -20,7 +20,7 @@ public class MinecraftStopStrategy implements StopStrategy {
             BufferedWriter w = mp.getStdinWriter();
             w.write("stop\n");
             w.flush();
-            if (!mp.getProcess().waitFor(gracefulTimeoutSeconds, TimeUnit.SECONDS)) {
+            if (!mp.waitFor(gracefulTimeoutSeconds, TimeUnit.SECONDS)) {
                 System.out.println("Minecraft stoppet ikke innen " + gracefulTimeoutSeconds + "s — tvangskiller.");
                 killer.killProcessTree(mp.pid(), true);
             }
