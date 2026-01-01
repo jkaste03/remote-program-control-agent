@@ -1,6 +1,7 @@
 package manager;
 
 import java.io.BufferedWriter;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -15,6 +16,7 @@ public class ManagedProcess {
     private ProgramHandler handler;
     private long programId;
     private boolean stoppedByAgent;
+    private final CompletableFuture<Boolean> readyFuture = new CompletableFuture<>();
 
     public ManagedProcess(Process process, BufferedWriter stdinWriter, boolean minecraft, ProgramHandler handler,
             long programId) {
@@ -73,6 +75,14 @@ public class ManagedProcess {
 
     public void markStoppedByAgent() {
         this.stoppedByAgent = true;
+    }
+
+    public CompletableFuture<Boolean> getReadyFuture() {
+        return readyFuture;
+    }
+
+    public void markReady() {
+        readyFuture.complete(true);
     }
 
     public ProcessHandle getProcessHandle() {

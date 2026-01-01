@@ -48,17 +48,17 @@ public class ProcessManager {
 
     public CompletableFuture<Boolean> handleCommand(long programId, String filename, CommandAction action) {
         if (action == CommandAction.START) {
-            return CompletableFuture.completedFuture(startProgram(programId, filename));
+            return startProgram(programId, filename);
         } else if (action == CommandAction.STOP) {
             return stopProgram(filename);
         }
         return CompletableFuture.completedFuture(false);
     }
 
-    public boolean startProgram(long programId, String filename) {
+    public CompletableFuture<Boolean> startProgram(long programId, String filename) {
         ProgramTarget target = resolveProgramTarget(filename);
         if (target == null || !target.realFile.exists()) {
-            return false;
+            return CompletableFuture.completedFuture(false);
         }
 
         try {
@@ -77,14 +77,34 @@ public class ProcessManager {
 
             LOGGER.log(Level.INFO, () -> "Started: " + target.realFile.getAbsolutePath() + " PID=" + p.pid());
 
-            // Start logger-tråd for stdout/err
+            // Readiness detection: MC waits for "Done (..)!"; others are ready immediately
+            boolean isMinecraft = handler instanceof program.MinecraftProgramHandler;
+            if (!isMinecraft) {
+                mp.markReady();
+            }
+
+            ProcessHandle handle = mp.getProcessHandle();
+            if (handle != null) {
+                handle.onExit().thenRun(() -> {
+                    if (!mp.getReadyFuture().isDone()) {
+                        mp.getReadyFuture().complete(false);
+                    }
+                });
+            }
+
             new Thread(new ProcessOutputLogger(mp, filename,
-                    () -> handlePauseDuringShutdown(filename, mp))).start();
-            return true;
+                    () -> handlePauseDuringShutdown(filename, mp),
+                    line -> {
+                        if (isMinecraft && line.contains("Done (") && line.contains("For help")) {
+                            mp.markReady();
+                        }
+                    })).start();
+
+            return mp.getReadyFuture();
 
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "Failed to start program", e);
-            return false;
+            return CompletableFuture.completedFuture(false);
         }
     }
 
@@ -217,6 +237,8 @@ public class ProcessManager {
         if (handler instanceof program.MinecraftProgramHandler) {
             mp.setMinecraft(true);
         }
+
+        mp.markReady();
 
         registerActiveProcess(filename, mp);
         LOGGER.log(Level.INFO, () -> "Restored process: " + filename + " (PID=" + pid + ")");

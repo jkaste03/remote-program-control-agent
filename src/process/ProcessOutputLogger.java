@@ -2,6 +2,7 @@ package process;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.function.Consumer;
 
 import manager.ManagedProcess;
 
@@ -9,13 +10,15 @@ public class ProcessOutputLogger implements Runnable {
     private final ManagedProcess mp;
     private final String name;
     private final Runnable onPauseDetected;
+    private final Consumer<String> onLine;
 
     private static final String PAUSE_MARKER = "press any key to continue";
 
-    public ProcessOutputLogger(ManagedProcess mp, String name, Runnable onPauseDetected) {
+    public ProcessOutputLogger(ManagedProcess mp, String name, Runnable onPauseDetected, Consumer<String> onLine) {
         this.mp = mp;
         this.name = name;
         this.onPauseDetected = onPauseDetected;
+        this.onLine = onLine;
     }
 
     @Override
@@ -60,6 +63,9 @@ public class ProcessOutputLogger implements Runnable {
     private void emitLine(StringBuilder buffer) {
         if (buffer.length() > 0) {
             System.out.println("[" + name + "] " + buffer);
+            if (onLine != null) {
+                onLine.accept(buffer.toString());
+            }
         }
     }
 
