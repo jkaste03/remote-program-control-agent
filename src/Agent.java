@@ -41,9 +41,12 @@ public class Agent {
         processManager.setProcessExitListener((programId, filename) -> {
             try {
                 deviceClient.updateProgramStatus(programId, "STOPPED");
-                System.out.println("Detected unexpected stop for program id=" + programId + " (" + filename + ")");
+                LOGGER.info("Detected unexpected stop for program id=" + programId + " (" + filename + ")");
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.severe("Interrupted while reporting program stop for id=" + programId + ": " + e.getMessage());
             } catch (Exception e) {
-                System.err.println("Failed to report program stop for id=" + programId + ": " + e.getMessage());
+                LOGGER.severe("Failed to report program stop for id=" + programId + ": " + e.getMessage());
             }
         });
 

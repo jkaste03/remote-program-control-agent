@@ -5,13 +5,14 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import client.AgentConfig;
 import client.DeviceClient;
-import client.DeviceResponse;
 
 public class ProgramSyncService {
+    private static final Logger logger = Logger.getLogger(ProgramSyncService.class.getName());
     private final DeviceClient deviceClient;
     private final Path shortcutFolder;
     private List<String> lastKnownServerPrograms = new ArrayList<>();
@@ -27,29 +28,31 @@ public class ProgramSyncService {
      */
     public void syncPrograms() {
         try {
-            System.out.println("Checking for program synchronization...");
+            logger.info("Checking for program synchronization...");
 
             // 1. Get local programs (Source of Truth)
             List<String> localPrograms = getLocalPrograms();
 
             // 2. Compare with cached server state
             if (!areProgramListsEqual(localPrograms, lastKnownServerPrograms)) {
-                System.out.println("Program lists differ. Syncing with server...");
-                System.out.println("Local: " + localPrograms);
-                System.out.println("Server (Cached): " + lastKnownServerPrograms);
+                logger.info("Program lists differ. Syncing with server...");
+                logger.log(Level.INFO, "Local: {0}", localPrograms);
+                logger.log(Level.INFO, "Server (Cached): {0}", lastKnownServerPrograms);
 
                 deviceClient.syncPrograms(AgentConfig.DEVICE_ID, localPrograms);
 
                 // Update cache after successful sync
                 this.lastKnownServerPrograms = new ArrayList<>(localPrograms);
-                System.out.println("Programs synced successfully.");
+                logger.info("Programs synced successfully.");
             } else {
-                System.out.println("Programs are in sync.");
+                logger.info("Programs are in sync.");
             }
 
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            logger.log(Level.WARNING, "Program synchronization was interrupted", ie);
         } catch (Exception e) {
-            System.err.println("Failed to sync programs: " + e.getMessage());
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Failed to sync programs", e);
         }
     }
 
@@ -85,8 +88,8 @@ public class ProgramSyncService {
         if (list1.size() != list2.size()) {
             return false;
         }
-        List<String> sorted1 = list1.stream().sorted().collect(Collectors.toList());
-        List<String> sorted2 = list2.stream().sorted().collect(Collectors.toList());
+        List<String> sorted1 = list1.stream().sorted().toList();
+        List<String> sorted2 = list2.stream().sorted().toList();
         return sorted1.equals(sorted2);
     }
 }
