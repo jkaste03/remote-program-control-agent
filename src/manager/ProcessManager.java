@@ -42,7 +42,7 @@ public class ProcessManager {
         this.commandBuilder = new CommandBuilder();
         this.processKiller = new ProcessKiller();
         this.programHandlerFactory = new ProgramHandlerFactory();
-        this.stateFilePath = shortcutFolder.resolve(STATE_FILE_NAME);
+        this.stateFilePath = shortcutFolder.resolveSibling(STATE_FILE_NAME);
         loadProcessList();
     }
 
