@@ -143,35 +143,45 @@ public class ProcessManager {
         try (BufferedReader reader = Files.newBufferedReader(stateFilePath, StandardCharsets.UTF_8)) {
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split("=", 2);
-                if (parts.length == 2) {
-                    String filename = parts[0];
-                    try {
-                        long pid = Long.parseLong(parts[1]);
-                        ProcessHandle handle = ProcessHandle.of(pid).orElse(null);
-                        if (handle != null && handle.isAlive()) {
-                            ProgramTarget target = resolveProgramTarget(filename);
-                            File targetFile = target != null ? target.realFile
-                                    : shortcutFolder.resolve(filename).toFile();
-
-                            ProgramHandler handler = programHandlerFactory.getHandler(filename, targetFile);
-                            ManagedProcess mp = new ManagedProcess(pid, false, handler);
-
-                            if (handler instanceof program.MinecraftProgramHandler) {
-                                mp.setMinecraft(true);
-                            }
-
-                            registerActiveProcess(filename, mp);
-                            LOGGER.log(Level.INFO, () -> "Restored process: " + filename + " (PID=" + pid + ")");
-                        }
-                    } catch (NumberFormatException e) {
-                        // Ignore invalid lines
-                    }
-                }
+                handleProcessLine(line);
             }
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Could not load process list", e);
         }
+    }
+
+    private void handleProcessLine(String line) {
+        String[] parts = line.split("=", 2);
+        if (parts.length != 2) {
+            return;
+        }
+        String filename = parts[0];
+        try {
+            long pid = Long.parseLong(parts[1]);
+            restoreProcess(filename, pid);
+        } catch (NumberFormatException e) {
+            // Ignore invalid lines
+        }
+    }
+
+    private void restoreProcess(String filename, long pid) {
+        ProcessHandle handle = ProcessHandle.of(pid).orElse(null);
+        if (handle == null || !handle.isAlive()) {
+            return;
+        }
+
+        ProgramTarget target = resolveProgramTarget(filename);
+        File targetFile = target != null ? target.realFile : shortcutFolder.resolve(filename).toFile();
+
+        ProgramHandler handler = programHandlerFactory.getHandler(filename, targetFile);
+        ManagedProcess mp = new ManagedProcess(pid, false, handler);
+
+        if (handler instanceof program.MinecraftProgramHandler) {
+            mp.setMinecraft(true);
+        }
+
+        registerActiveProcess(filename, mp);
+        LOGGER.log(Level.INFO, () -> "Restored process: " + filename + " (PID=" + pid + ")");
     }
 
     private void registerActiveProcess(String filename, ManagedProcess mp) {
