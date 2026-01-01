@@ -1,1 +1,0 @@
-start.bat.lnk=5424:5

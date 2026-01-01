@@ -78,7 +78,8 @@ public class ProcessManager {
             LOGGER.log(Level.INFO, () -> "Started: " + target.realFile.getAbsolutePath() + " PID=" + p.pid());
 
             // Start logger-tråd for stdout/err
-            new Thread(new ProcessOutputLogger(mp, filename)).start();
+            new Thread(new ProcessOutputLogger(mp, filename,
+                    () -> handlePauseDuringShutdown(filename, mp))).start();
             return true;
 
         } catch (IOException e) {
@@ -268,6 +269,17 @@ public class ProcessManager {
 
         String workingDirectory = file.getParent();
         return new ProgramTarget(file, "", workingDirectory == null ? "" : workingDirectory);
+    }
+
+    private void handlePauseDuringShutdown(String filename, ManagedProcess mp) {
+        LOGGER.log(Level.INFO, () -> "Detected pause prompt for " + filename + "(PID=" + mp.pid() + "), forcing kill.");
+        processKiller.killProcessTree(mp.pid(), true);
+
+        // Ensure the primary handle is terminated even if children were already killed
+        ProcessHandle handle = mp.getProcessHandle();
+        if (handle != null && handle.isAlive()) {
+            handle.destroyForcibly();
+        }
     }
 
     private static final class ProgramTarget {
