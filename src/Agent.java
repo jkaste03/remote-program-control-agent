@@ -1,6 +1,7 @@
 import java.nio.file.Paths;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.logging.Logger;
 
 import client.AgentConfig;
 import client.AuthService;
@@ -15,6 +16,7 @@ import core.ServerEventHandler;
 import manager.ProcessManager;
 
 public class Agent {
+    private static final Logger LOGGER = Logger.getLogger(Agent.class.getName());
     // Relative path: "program-shortcuts" in the current working directory
     private static final String SHORTCUT_FOLDER = "program-shortcuts";
 
@@ -48,7 +50,7 @@ public class Agent {
 
         } catch (Exception e) {
             e.printStackTrace();
-            System.err.println("Failed to initialize device. Exiting.");
+            LOGGER.severe("Failed to initialize device. Exiting.");
             return;
         }
 
@@ -60,6 +62,7 @@ public class Agent {
         try {
             new CountDownLatch(1).await();
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             e.printStackTrace();
         }
     }
