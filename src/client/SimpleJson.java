@@ -29,8 +29,8 @@ public class SimpleJson {
     public static List<String> extractArray(String json, String arrayName, String fieldName) {
         List<String> results = new ArrayList<>();
 
-        // Find the array content: "arrayName": [ ... ]
-        Pattern arrayPattern = Pattern.compile("\"" + arrayName + "\"\\s*:\\s*\\[(.*?)\\]", Pattern.DOTALL);
+        // Find the array content: "arrayName": [ ... ]. Use a greedy match to avoid stopping on nested [] (e.g., allowedUsers arrays)
+        Pattern arrayPattern = Pattern.compile("\"" + arrayName + "\"\\s*:\\s*\\[(.*)\\]", Pattern.DOTALL);
         Matcher arrayMatcher = arrayPattern.matcher(json);
 
         if (arrayMatcher.find()) {
