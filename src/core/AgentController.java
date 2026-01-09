@@ -5,14 +5,21 @@ import java.util.concurrent.CompletableFuture;
 import client.DeviceClient;
 import command.CommandAction;
 import manager.ProcessManager;
+import manager.SystemPowerManager;
 
 public class AgentController {
     private final ProcessManager processManager;
     private final DeviceClient deviceClient;
+    private final SystemPowerManager systemPowerManager;
 
     public AgentController(ProcessManager processManager, DeviceClient deviceClient) {
         this.processManager = processManager;
         this.deviceClient = deviceClient;
+        this.systemPowerManager = new SystemPowerManager();
+    }
+
+    public void handleShutdown() {
+        systemPowerManager.shutdownSystem();
     }
 
     public void handleProgramCommand(long programId, String filename, CommandAction action) {

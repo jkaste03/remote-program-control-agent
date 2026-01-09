@@ -29,6 +29,9 @@ public class ServerEventHandler implements BiConsumer<String, String> {
             action = CommandAction.START;
         } else if ("STOP_PROGRAM".equals(event)) {
             action = CommandAction.STOP;
+        } else if ("SHUTDOWN".equals(event)) {
+            agentController.handleShutdown();
+            return;
         }
 
         if (action != null) {
