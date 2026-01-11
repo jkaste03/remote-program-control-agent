@@ -1,5 +1,9 @@
 package client;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 public class ConsoleInputHandler {
@@ -46,6 +50,61 @@ public class ConsoleInputHandler {
             } catch (NumberFormatException e) {
                 System.out.println("Error: Invalid number.");
             }
+        }
+    }
+
+    public String askForMacAddress(Map<String, String> macs) {
+        if (macs.isEmpty()) {
+            return null;
+        }
+
+        // Group interfaces by MAC address to show unique MACs only
+        Map<String, List<String>> macToNames = new HashMap<>();
+        for (Map.Entry<String, String> entry : macs.entrySet()) {
+            macToNames.computeIfAbsent(entry.getValue(), k -> new ArrayList<>()).add(entry.getKey());
+        }
+
+        // If only one unique MAC exists, use it automatically
+        if (macToNames.size() == 1) {
+            return macToNames.keySet().iterator().next();
+        }
+
+        System.out.println("Detected multiple MAC addresses. Please select one for identification:");
+        List<String> uniqueMacs = new ArrayList<>(macToNames.keySet());
+
+        for (int i = 0; i < uniqueMacs.size(); i++) {
+            String mac = uniqueMacs.get(i);
+            List<String> names = macToNames.get(mac);
+
+            List<String> types = new ArrayList<>();
+            for (String name : names) {
+                String lower = name.toLowerCase();
+                if (lower.contains("wireless") || lower.contains("wi-fi") || lower.contains("wifi")
+                        || lower.contains("wlan")) {
+                    if (!types.contains("Wireless"))
+                        types.add("Wireless");
+                }
+                if (lower.contains("ethernet") || lower.contains("eth") || lower.contains("lan")) {
+                    if (!types.contains("Ethernet"))
+                        types.add("Ethernet");
+                }
+            }
+
+            String suffix = types.isEmpty() ? "" : " (" + String.join(", ", types) + ")";
+            System.out.println((i + 1) + ") " + mac + suffix);
+        }
+
+        while (true) {
+            System.out.println("Select MAC [1-" + uniqueMacs.size() + "]: ");
+            String input = scanner.nextLine().trim();
+            try {
+                int selection = Integer.parseInt(input);
+                if (selection >= 1 && selection <= uniqueMacs.size()) {
+                    return uniqueMacs.get(selection - 1);
+                }
+            } catch (NumberFormatException ignored) {
+            }
+            System.out.println("Invalid selection. Please try again.");
         }
     }
 }

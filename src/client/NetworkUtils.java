@@ -8,10 +8,13 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 
 public class NetworkUtils {
 
-    public static String getMacAddress() {
+    public static Map<String, String> getAvailableMacAddresses() {
+        Map<String, String> result = new HashMap<>();
         try {
             Enumeration<NetworkInterface> networks = NetworkInterface.getNetworkInterfaces();
             while (networks.hasMoreElements()) {
@@ -23,13 +26,21 @@ public class NetworkUtils {
                     for (int i = 0; i < mac.length; i++) {
                         sb.append(String.format("%02X%s", mac[i], (i < mac.length - 1) ? ":" : ""));
                     }
-                    return sb.toString();
+                    result.put(network.getDisplayName(), sb.toString());
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        return null;
+        return result;
+    }
+
+    public static String getMacAddress() {
+        // Fallback or simple retrieval: returns the first available one
+        Map<String, String> macs = getAvailableMacAddresses();
+        if (macs.isEmpty())
+            return null;
+        return macs.values().iterator().next();
     }
 
     public static String getPublicIp() {
