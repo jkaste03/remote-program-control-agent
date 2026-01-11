@@ -107,4 +107,25 @@ public class ConsoleInputHandler {
             System.out.println("Invalid selection. Please try again.");
         }
     }
+
+    public void listenForCommands(Runnable onLogout, Runnable onExit) {
+        System.out.println("\n---------------------------------------------------");
+        System.out.println("Agent is running.");
+        System.out.println("Type 'logout' to clear credentials and exit.");
+        System.out.println("Type 'exit' or 'quit' to stop the agent.");
+        System.out.println("---------------------------------------------------\n");
+
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine().trim();
+            if ("logout".equalsIgnoreCase(line)) {
+                if (onLogout != null)
+                    onLogout.run();
+                break;
+            } else if ("exit".equalsIgnoreCase(line) || "quit".equalsIgnoreCase(line)) {
+                if (onExit != null)
+                    onExit.run();
+                break;
+            }
+        }
+    }
 }

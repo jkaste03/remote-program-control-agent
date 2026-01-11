@@ -74,12 +74,16 @@ public class Agent {
         SseClient sseClient = new SseClient(AgentConfig.DEVICE_ID, authService, eventHandler);
         sseClient.start();
 
-        // 4. Keep the application running
-        try {
-            new CountDownLatch(1).await();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            e.printStackTrace();
-        }
+        // 4. Keep the application running and listen for user input
+        inputHandler.listenForCommands(
+                () -> {
+                    LOGGER.info("Logging out...");
+                    authService.logout();
+                    System.exit(0);
+                },
+                () -> {
+                    LOGGER.info("Exiting...");
+                    System.exit(0);
+                });
     }
 }

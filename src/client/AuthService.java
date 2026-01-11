@@ -81,7 +81,8 @@ public class AuthService {
                 "&client_id=" + AgentConfig.CLIENT_ID +
                 "&redirect_uri=" + URLEncoder.encode(AgentConfig.REDIRECT_URI, StandardCharsets.UTF_8) +
                 "&scope=" + URLEncoder.encode(AgentConfig.SCOPE, StandardCharsets.UTF_8) +
-                "&state=" + state;
+                "&state=" + state +
+                "&prompt=login";
 
         System.out.println("Opening browser for login: " + loginUrl);
         if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
@@ -176,5 +177,15 @@ public class AuthService {
             }
         }
         return null;
+    }
+
+    public void logout() {
+        try {
+            Files.deleteIfExists(Paths.get(AgentConfig.TOKEN_FILE));
+            cachedAccessToken = null;
+            System.out.println("Refresh token deleted.");
+        } catch (IOException e) {
+            System.err.println("Failed to delete refresh token: " + e.getMessage());
+        }
     }
 }
