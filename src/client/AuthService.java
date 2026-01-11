@@ -41,6 +41,24 @@ public class AuthService {
         return performLogin();
     }
 
+    public String getUserId() throws IOException, InterruptedException {
+        String token = getAccessToken();
+        if (token == null)
+            return null;
+
+        String[] parts = token.split("\\.");
+        if (parts.length < 2)
+            return null;
+
+        try {
+            String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+            return SimpleJson.extractField(payload, "sub");
+        } catch (IllegalArgumentException e) {
+            System.err.println("Failed to decode JWT payload: " + e.getMessage());
+            return null;
+        }
+    }
+
     private String performLogin() throws IOException, InterruptedException {
         String state = "state-" + System.currentTimeMillis();
         CountDownLatch latch = new CountDownLatch(1);

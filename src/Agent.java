@@ -31,7 +31,8 @@ public class Agent {
         ProcessManager processManager = new ProcessManager(Paths.get(SHORTCUT_FOLDER));
 
         // Domain Services
-        DeviceRegistrationService registrationService = new DeviceRegistrationService(deviceClient, inputHandler);
+        DeviceRegistrationService registrationService = new DeviceRegistrationService(deviceClient, inputHandler,
+                authService);
         AgentController agentController = new AgentController(processManager, deviceClient);
         ProgramSyncService programSyncService = new ProgramSyncService(deviceClient, Paths.get(SHORTCUT_FOLDER));
         ProgramDirectoryWatcher programWatcher = new ProgramDirectoryWatcher(Paths.get(SHORTCUT_FOLDER),

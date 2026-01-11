@@ -10,10 +10,13 @@ import java.util.Map;
 public class DeviceRegistrationService {
     private final DeviceClient deviceClient;
     private final ConsoleInputHandler inputHandler;
+    private final AuthService authService;
 
-    public DeviceRegistrationService(DeviceClient deviceClient, ConsoleInputHandler inputHandler) {
+    public DeviceRegistrationService(DeviceClient deviceClient, ConsoleInputHandler inputHandler,
+            AuthService authService) {
         this.deviceClient = deviceClient;
         this.inputHandler = inputHandler;
+        this.authService = authService;
     }
 
     public List<String> initializeDevice() throws Exception {
@@ -24,22 +27,35 @@ public class DeviceRegistrationService {
             throw new RuntimeException("Could not determine MAC address or Public IP.");
         }
 
+        // Authenticate and load user-specific config
+        String userId = authService.getUserId();
+        System.out.println("Authenticated as User ID: " + userId);
+
+        long userDeviceId = AgentConfig.getDeviceIdForUser(userId);
+        if (userDeviceId != -1) {
+            AgentConfig.DEVICE_ID = userDeviceId;
+            System.out.println("Loaded Device ID " + userDeviceId + " from local config.");
+        } else {
+            AgentConfig.DEVICE_ID = -1;
+        }
+
         // 1. Register or Update device on server
         if (AgentConfig.DEVICE_ID != -1) {
-            return handleExistingDevice(availableMacs, publicIp);
+            return handleExistingDevice(availableMacs, publicIp, userId);
         } else {
-            return handleNewDevice(availableMacs, publicIp);
+            return handleNewDevice(availableMacs, publicIp, userId);
         }
     }
 
-    private List<String> handleExistingDevice(Map<String, String> availableMacs, String publicIp) throws Exception {
+    private List<String> handleExistingDevice(Map<String, String> availableMacs, String publicIp, String userId)
+            throws Exception {
         System.out.println("Checking existing device with ID: " + AgentConfig.DEVICE_ID);
         // Fetch device details INCLUDING programs
         DeviceResponse device = deviceClient.getDeviceDetails(AgentConfig.DEVICE_ID, true);
 
         if (device == null) {
             System.out.println("Device not found on server. Re-registering...");
-            return handleNewDevice(availableMacs, publicIp);
+            return handleNewDevice(availableMacs, publicIp, userId);
         } else {
             System.out.println("Device found: " + device.getName());
 
@@ -79,7 +95,8 @@ public class DeviceRegistrationService {
         }
     }
 
-    private List<String> handleNewDevice(Map<String, String> availableMacs, String publicIp) throws Exception {
+    private List<String> handleNewDevice(Map<String, String> availableMacs, String publicIp, String userId)
+            throws Exception {
         System.out.println("No device ID configured. Registering new device...");
 
         // For new devices, we need to ask for initial configuration
@@ -89,14 +106,14 @@ public class DeviceRegistrationService {
 
         String macAddress = inputHandler.askForMacAddress(availableMacs);
 
-        return registerDevice(macAddress, publicIp);
+        return registerDevice(macAddress, publicIp, userId);
     }
 
-    private List<String> registerDevice(String macAddress, String publicIp) throws Exception {
+    private List<String> registerDevice(String macAddress, String publicIp, String userId) throws Exception {
         DeviceResponse newDevice = deviceClient.createDevice(AgentConfig.DEVICE_NAME, publicIp, AgentConfig.WOL_PORT,
                 macAddress);
         AgentConfig.DEVICE_ID = newDevice.getId();
-        AgentConfig.saveConfig(); // Only saves ID now
+        AgentConfig.saveDeviceIdForUser(userId, AgentConfig.DEVICE_ID);
         System.out.println("Registered new device with ID: " + AgentConfig.DEVICE_ID);
         return Collections.emptyList(); // New device has no programs
     }
