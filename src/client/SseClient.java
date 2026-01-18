@@ -5,14 +5,19 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.function.BiConsumer;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Stream;
 
 public class SseClient {
+    private static final long BASE_RETRY_MS = 5000;
+    private static final long MAX_RETRY_MS = 60000;
+
     private final HttpClient client;
     private final String baseUrl;
     private final long deviceId;
     private final AuthService authService;
     private final BiConsumer<String, String> eventHandler;
+    private long retryDelayMs = BASE_RETRY_MS;
 
     public SseClient(long deviceId, AuthService authService, BiConsumer<String, String> eventHandler) {
         this.client = HttpClient.newHttpClient();
@@ -54,8 +59,10 @@ public class SseClient {
     }
 
     private void retry() {
+        long waitMs = retryDelayMs + ThreadLocalRandom.current().nextLong(0, 500);
+        retryDelayMs = Math.min(MAX_RETRY_MS, retryDelayMs * 2);
         try {
-            Thread.sleep(5000); // Retry delay
+            Thread.sleep(waitMs);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
@@ -70,6 +77,7 @@ public class SseClient {
         }
 
         System.out.println("Connected to SSE stream.");
+        retryDelayMs = BASE_RETRY_MS; // reset backoff on successful connect
 
         final StringBuilder dataBuffer = new StringBuilder();
         final String[] eventName = { null };
