@@ -13,6 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -21,6 +24,7 @@ import com.sun.net.httpserver.HttpServer;
 public class AuthService {
     private final HttpClient client;
     private String cachedAccessToken;
+    private String codeVerifier;
 
     public AuthService() {
         this.client = HttpClient.newHttpClient();
@@ -94,11 +98,17 @@ public class AuthService {
         });
         server.start();
 
+        String codeVerifier = generateCodeVerifier();
+        String codeChallenge = generateCodeChallenge(codeVerifier);
+        this.codeVerifier = codeVerifier;
+
         String loginUrl = AgentConfig.AUTH_URL +
                 "?response_type=code" +
                 "&client_id=" + AgentConfig.CLIENT_ID +
                 "&redirect_uri=" + URLEncoder.encode(AgentConfig.REDIRECT_URI, StandardCharsets.UTF_8) +
                 "&scope=" + URLEncoder.encode(AgentConfig.SCOPE, StandardCharsets.UTF_8) +
+                "&code_challenge=" + codeChallenge +
+                "&code_challenge_method=S256" +
                 "&state=" + state +
                 "&prompt=login";
 
@@ -127,7 +137,8 @@ public class AuthService {
         String data = "grant_type=authorization_code" +
                 "&client_id=" + AgentConfig.CLIENT_ID +
                 "&code=" + code +
-                "&redirect_uri=" + AgentConfig.REDIRECT_URI;
+                "&redirect_uri=" + AgentConfig.REDIRECT_URI +
+                "&code_verifier=" + codeVerifier;
 
         return requestTokens(data);
     }
@@ -205,5 +216,25 @@ public class AuthService {
         } catch (IOException e) {
             System.err.println("Failed to delete refresh token: " + e.getMessage());
         }
+    }
+
+    private static String generateCodeVerifier() {
+        byte[] code = new byte[32];
+        new SecureRandom().nextBytes(code);
+        return base64Url(code);
+    }
+
+    private static String generateCodeChallenge(String verifier) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = digest.digest(verifier.getBytes(StandardCharsets.US_ASCII));
+            return base64Url(hashed);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private static String base64Url(byte[] data) {
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(data);
     }
 }

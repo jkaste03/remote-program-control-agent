@@ -7,12 +7,12 @@ import java.util.Properties;
 
 public class AgentConfig {
     public static final String BASE_URL = "http://localhost:8090";
-    public static final String KEYCLOAK_URL = "http://localhost:8080/realms/DAT152";
+    public static final String KEYCLOAK_URL = "http://localhost:8080/realms/remote-control";
     public static final String AUTH_URL = KEYCLOAK_URL + "/protocol/openid-connect/auth";
     public static final String TOKEN_URL = KEYCLOAK_URL + "/protocol/openid-connect/token";
-    public static final String CLIENT_ID = "dat152oblig2";
+    public static final String CLIENT_ID = "remote-control-api";
     public static final String REDIRECT_URI = "http://localhost:8888/callback";
-    public static final String SCOPE = "openid offline_access";
+    public static final String SCOPE = "openid profile email offline_access";
 
     public static long DEVICE_ID = -1;
     public static String DEVICE_NAME = null;
