@@ -7,7 +7,7 @@ import java.util.Properties;
 
 public class AgentConfig {
     public static final String BASE_URL = "http://localhost:8090";
-    public static final String KEYCLOAK_URL = "http://localhost:8080/realms/remote-control";
+    public static final String KEYCLOAK_URL = "https://euc1.auth.ac/auth/realms/remote-control";
     public static final String AUTH_URL = KEYCLOAK_URL + "/protocol/openid-connect/auth";
     public static final String TOKEN_URL = KEYCLOAK_URL + "/protocol/openid-connect/token";
     public static final String CLIENT_ID = "remote-control-api";
