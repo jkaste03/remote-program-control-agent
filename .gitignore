@@ -4,3 +4,6 @@ agent.properties
 .vscode/
 *.class
 program-shortcuts/
+
+gitleaks.exe
+gitleaks-report.json
