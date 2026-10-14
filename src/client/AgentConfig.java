@@ -18,6 +18,9 @@ public class AgentConfig {
     private static final String PRODUCTION_BASE_URL =
             "https://www.fotcalc.com/remote-program-control";
 
+    private static final String PRODUCTION_SSE_API_BASE_URL =
+            "https://api.fotcalc.com/remote-program-control/api/v1";
+
     public static final String BASE_URL = getBaseUrl();
     public static final String LOGIN_URL = BASE_URL + "/auth/login";
     public static final String REFRESH_URL = BASE_URL + "/auth/refresh";
@@ -31,10 +34,19 @@ public class AgentConfig {
             return normalizeBaseUrl(override);
         }
 
-        // If a custom server URL is configured, use it for SSE too.
+        // An explicit production base URL must still use the public API
+        // hostname for SSE. The website hostname is not the SSE endpoint.
         String explicitBaseUrl = System.getenv("AGENT_BASE_URL");
 
         if (explicitBaseUrl != null && !explicitBaseUrl.isBlank()) {
+            String normalizedExplicitBaseUrl =
+                    normalizeBaseUrl(explicitBaseUrl);
+
+            if (normalizedExplicitBaseUrl.equalsIgnoreCase(PRODUCTION_BASE_URL)) {
+                return PRODUCTION_SSE_API_BASE_URL;
+            }
+
+            // Custom development/deployment URLs use their own API hostname.
             return API_BASE_URL;
         }
 
@@ -44,8 +56,7 @@ public class AgentConfig {
                 .toLowerCase(Locale.ROOT);
 
         return switch (profile) {
-            case "prod", "production" ->
-                    "https://api.fotcalc.com/remote-program-control/api/v1";
+            case "prod", "production" -> PRODUCTION_SSE_API_BASE_URL;
             case "dev", "development", "" -> API_BASE_URL;
             default -> throw new IllegalStateException(
                     "Unsupported AGENT_PROFILE '" + profile + "'."
