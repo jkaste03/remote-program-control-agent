@@ -1,5 +1,6 @@
 package client;
 
+import java.io.Console;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +12,40 @@ public class ConsoleInputHandler {
 
     public ConsoleInputHandler() {
         this.scanner = new Scanner(System.in);
+    }
+
+    public String askForUsername() {
+        while (true) {
+            System.out.print("Username or email: ");
+            if (!scanner.hasNextLine()) {
+                throw new IllegalStateException("No console input available for authentication.");
+            }
+            String username = scanner.nextLine().trim();
+            if (!username.isEmpty()) {
+                return username;
+            }
+            System.out.println("Username or email cannot be empty.");
+        }
+    }
+
+    public char[] askForPassword() {
+        Console console = System.console();
+        if (console != null) {
+            char[] password = console.readPassword("Password: ");
+            if (password != null && password.length > 0) {
+                return password;
+            }
+        } else {
+            System.out.println("Warning: hidden password input is unavailable in this console.");
+            System.out.print("Password: ");
+            if (scanner.hasNextLine()) {
+                String password = scanner.nextLine();
+                if (!password.isEmpty()) {
+                    return password.toCharArray();
+                }
+            }
+        }
+        throw new IllegalStateException("Password cannot be empty.");
     }
 
     public String askForDeviceName(String defaultName) {
@@ -58,13 +93,11 @@ public class ConsoleInputHandler {
             return null;
         }
 
-        // Group interfaces by MAC address to show unique MACs only
         Map<String, List<String>> macToNames = new HashMap<>();
         for (Map.Entry<String, String> entry : macs.entrySet()) {
             macToNames.computeIfAbsent(entry.getValue(), k -> new ArrayList<>()).add(entry.getKey());
         }
 
-        // If only one unique MAC exists, use it automatically
         if (macToNames.size() == 1) {
             return macToNames.keySet().iterator().next();
         }
@@ -111,7 +144,7 @@ public class ConsoleInputHandler {
     public void listenForCommands(Runnable onLogout, Runnable onExit) {
         System.out.println("\n---------------------------------------------------");
         System.out.println("Agent is running.");
-        System.out.println("Type 'logout' to clear credentials and exit.");
+        System.out.println("Type 'logout' to clear local credentials and exit.");
         System.out.println("Type 'exit' or 'quit' to stop the agent.");
         System.out.println("---------------------------------------------------\n");
 

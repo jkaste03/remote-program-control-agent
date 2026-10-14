@@ -16,7 +16,7 @@ public class DeviceClient {
     public DeviceClient(AuthService authService) {
         this.authService = authService;
         this.httpClient = HttpClient.newHttpClient();
-        this.baseUrl = AgentConfig.BASE_URL + "/remote-program-control/api/v1/devices";
+        this.baseUrl = AgentConfig.API_BASE_URL + "/devices";
     }
 
     public DeviceResponse getDeviceDetails(long id, boolean includePrograms) throws IOException, InterruptedException {
@@ -91,7 +91,7 @@ public class DeviceClient {
     public void updateProgramStatus(long programId, String status) throws IOException, InterruptedException {
         String token = authService.getAccessToken();
         String json = "{\"status\": \"" + status + "\"}";
-        String url = AgentConfig.BASE_URL + "/remote-program-control/api/v1/programs/" + programId + "/status";
+        String url = AgentConfig.API_BASE_URL + "/programs/" + programId + "/status";
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))

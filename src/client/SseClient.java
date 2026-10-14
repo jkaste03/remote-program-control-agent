@@ -13,7 +13,6 @@ public class SseClient {
     private static final long MAX_RETRY_MS = 60000;
 
     private final HttpClient client;
-    private final String baseUrl;
     private final long deviceId;
     private final AuthService authService;
     private final BiConsumer<String, String> eventHandler;
@@ -21,7 +20,6 @@ public class SseClient {
 
     public SseClient(long deviceId, AuthService authService, BiConsumer<String, String> eventHandler) {
         this.client = HttpClient.newHttpClient();
-        this.baseUrl = AgentConfig.BASE_URL;
         this.deviceId = deviceId;
         this.authService = authService;
         this.eventHandler = eventHandler;
@@ -34,7 +32,7 @@ public class SseClient {
     private void connect() {
         try {
             String token = authService.getAccessToken();
-            String url = baseUrl + "/remote-program-control/api/v1/devices/" + deviceId + "/events";
+            String url = AgentConfig.API_BASE_URL + "/devices/" + deviceId + "/events";
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))

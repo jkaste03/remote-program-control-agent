@@ -1,18 +1,37 @@
-## Getting Started
+# Remote Program Control agent
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+Agenten kobler programmer til Remote Program Control. Den synkroniserer
+programfiler fra program-shortcuts, starter og stopper dem og rapporterer
+status over SSE.
 
-## Folder Structure
+## Authentication
 
-The workspace contains two folders by default, where:
+Authentication is handled by the application's internal user store. No
+external identity provider or browser-based OAuth flow is required.
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
+Set the server URL before starting the agent (optional):
 
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
+~~~text
+AGENT_BASE_URL=<your-development-server-url>
+~~~
 
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
+On the first start, the agent asks for the application username and password in the console.
+The password is hidden when the agent runs in a real terminal. The agent does not store the password or read it from environment variables.
 
-## Dependency Management
+The agent stores the refresh token locally in refresh_token.txt. Use
+logout in the agent console to remove it.
 
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+## Supported programs
+
+The agent can launch:
+
+- JAR files with java -jar
+- BAT and CMD files through cmd
+- Python files with python
+- PowerShell scripts
+- Shell scripts through bash
+- Executables and other files supported by the operating system
+
+Windows shortcut files in program-shortcuts may point to any supported launch
+file. Minecraft servers receive their server-specific readiness and graceful
+stop handling; other programs use the generic process strategies.

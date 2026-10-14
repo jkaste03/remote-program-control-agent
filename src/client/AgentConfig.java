@@ -6,13 +6,10 @@ import java.io.IOException;
 import java.util.Properties;
 
 public class AgentConfig {
-    public static final String BASE_URL = "http://localhost:8090";
-    public static final String KEYCLOAK_URL = "https://euc1.auth.ac/auth/realms/remote-control";
-    public static final String AUTH_URL = KEYCLOAK_URL + "/protocol/openid-connect/auth";
-    public static final String TOKEN_URL = KEYCLOAK_URL + "/protocol/openid-connect/token";
-    public static final String CLIENT_ID = "remote-control-api";
-    public static final String REDIRECT_URI = "http://localhost:8888/callback";
-    public static final String SCOPE = "openid profile email offline_access";
+    public static final String BASE_URL = getBaseUrl();
+    public static final String LOGIN_URL = BASE_URL + "/auth/login";
+    public static final String REFRESH_URL = BASE_URL + "/auth/refresh";
+    public static final String API_BASE_URL = BASE_URL + "/api/v1";
 
     public static long DEVICE_ID = -1;
     public static String DEVICE_NAME = null;
@@ -23,6 +20,16 @@ public class AgentConfig {
 
     // Store properties in memory to support multiple keys
     private static Properties properties = new Properties();
+
+    private static String getBaseUrl() {
+        String configuredUrl = System.getenv("AGENT_BASE_URL");
+        if (configuredUrl == null || configuredUrl.isBlank()) {
+            return "http://localhost:8090";
+        }
+        return configuredUrl.endsWith("/")
+                ? configuredUrl.substring(0, configuredUrl.length() - 1)
+                : configuredUrl;
+    }
 
     public static void loadConfig() {
         try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {

@@ -25,9 +25,9 @@ public class Agent {
         AgentConfig.loadConfig();
 
         // Infrastructure / IO
-        AuthService authService = new AuthService();
-        DeviceClient deviceClient = new DeviceClient(authService);
         ConsoleInputHandler inputHandler = new ConsoleInputHandler();
+        AuthService authService = new AuthService(inputHandler);
+        DeviceClient deviceClient = new DeviceClient(authService);
         ProcessManager processManager = new ProcessManager(Paths.get(SHORTCUT_FOLDER));
 
         // Domain Services
@@ -66,8 +66,9 @@ public class Agent {
             programWatcher.start();
 
         } catch (Exception e) {
-            e.printStackTrace();
-            LOGGER.severe("Failed to initialize device. Exiting.");
+            String message = e.getMessage();
+            LOGGER.severe("Agenten kunne ikke starte: "
+                    + (message == null || message.isBlank() ? e.getClass().getSimpleName() : message));
             return;
         }
 
@@ -88,3 +89,4 @@ public class Agent {
                 });
     }
 }
+

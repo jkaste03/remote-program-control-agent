@@ -26,6 +26,10 @@ public class SimpleJson {
         return null;
     }
 
+    public static String escapeJson(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
     public static List<String> extractArray(String json, String arrayName, String fieldName) {
         List<String> results = new ArrayList<>();
 
@@ -61,7 +65,7 @@ public class SimpleJson {
         StringBuilder sb = new StringBuilder();
         sb.append("[");
         for (int i = 0; i < filenames.size(); i++) {
-            sb.append(String.format("{\"filename\": \"%s\"}", filenames.get(i)));
+            sb.append(String.format("{\"filename\": \"%s\"}", escapeJson(filenames.get(i))));
             if (i < filenames.size() - 1) {
                 sb.append(",");
             }
