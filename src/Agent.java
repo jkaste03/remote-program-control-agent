@@ -28,7 +28,23 @@ public class Agent {
     private static final long MAX_RETRY_MS = 60000;
     private static final long RECOVERY_INTERVAL_SECONDS = 30;
     // Keep shortcuts beside the agent project, not inside it.
-    private static final Path SHORTCUT_FOLDER = Paths.get("..", "program-shortcuts").toAbsolutePath().normalize();
+    private static final Path SHORTCUT_FOLDER = resolveShortcutFolder();
+
+    private static Path resolveShortcutFolder() {
+        String configured = System.getenv("AGENT_SHORTCUTS_DIR");
+
+        if (configured != null && !configured.isBlank()) {
+            return Paths.get(configured)
+                    .toAbsolutePath()
+                    .normalize();
+        }
+
+        return Paths.get(
+                System.getProperty("user.home"),
+                "RemoteProgramControl",
+                "program-shortcuts"
+        ).toAbsolutePath().normalize();
+    }
 
     public static void main(String[] args) {
         // 1. Initialize Configuration and Services
@@ -45,7 +61,10 @@ public class Agent {
             LOGGER.severe("Could not create shortcut folder: " + e.getMessage());
             return;
         }
-        ProcessManager processManager = new ProcessManager(SHORTCUT_FOLDER);
+        ProcessManager processManager = new ProcessManager(
+            SHORTCUT_FOLDER,
+            AgentConfig.DATA_DIR.resolve("active_processes.txt")
+        );
 
         // Domain Services
         DeviceRegistrationService registrationService = new DeviceRegistrationService(deviceClient, inputHandler,

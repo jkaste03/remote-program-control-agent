@@ -144,21 +144,32 @@ public class AuthService {
     }
 
     private void saveRefreshToken(String token) throws IOException {
-        Files.writeString(Paths.get(AgentConfig.TOKEN_FILE), token);
+        AgentConfig.ensureDataDirectory();
+
+        Files.writeString(
+                AgentConfig.TOKEN_FILE,
+                token,
+                StandardCharsets.UTF_8
+        );
     }
 
     private String loadRefreshToken() {
-        Path path = Paths.get(AgentConfig.TOKEN_FILE);
+        Path path = AgentConfig.TOKEN_FILE;
+
         try {
-            return Files.exists(path) ? Files.readString(path).trim() : null;
+            return Files.exists(path)
+                    ? Files.readString(path, StandardCharsets.UTF_8).trim()
+                    : null;
         } catch (IOException e) {
-            System.err.println("Failed to read refresh token: " + e.getMessage());
+            System.err.println(
+                    "Failed to read refresh token: " + e.getMessage()
+            );
             return null;
         }
     }
 
     private void deleteRefreshToken() throws IOException {
-        Files.deleteIfExists(Paths.get(AgentConfig.TOKEN_FILE));
+        Files.deleteIfExists(AgentConfig.TOKEN_FILE);
     }
 
     public synchronized void logout() {

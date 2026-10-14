@@ -1,12 +1,10 @@
 bin/
-refresh_token.txt
-agent.properties
 .vscode/
 *.class
-program-shortcuts/
 
 gitleaks.exe
 gitleaks-report.json
-refresh_token.txt
 
 remote-program-control-agent.jar
+.agent-data-test/
+.program-shortcuts-test/

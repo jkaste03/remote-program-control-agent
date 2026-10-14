@@ -37,12 +37,23 @@ public class ProcessManager {
     private static final Logger LOGGER = Logger.getLogger(ProcessManager.class.getName());
 
     public ProcessManager(Path shortcutFolder) {
+        this(
+                shortcutFolder,
+                shortcutFolder.resolveSibling(STATE_FILE_NAME)
+        );
+    }
+
+    public ProcessManager(Path shortcutFolder, Path stateFilePath) {
         this.shortcutFolder = shortcutFolder;
         this.shortcutResolver = new ShortcutResolver();
         this.commandBuilder = new CommandBuilder();
         this.processKiller = new ProcessKiller();
         this.programHandlerFactory = new ProgramHandlerFactory();
-        this.stateFilePath = shortcutFolder.resolveSibling(STATE_FILE_NAME);
+
+        this.stateFilePath = stateFilePath
+                .toAbsolutePath()
+                .normalize();
+
         loadProcessList();
     }
 

@@ -1,13 +1,22 @@
+
 package client;
 
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Locale;
 import java.util.Properties;
 
 public class AgentConfig {
-    private static final String DEVELOPMENT_BASE_URL = "http://localhost:8090";
-    private static final String PRODUCTION_BASE_URL = "https://www.fotcalc.com/remote-program-control";
+
+    private static final String DEVELOPMENT_BASE_URL =
+            "http://localhost:8090";
+
+    private static final String PRODUCTION_BASE_URL =
+            "https://www.fotcalc.com/remote-program-control";
 
     public static final String BASE_URL = getBaseUrl();
     public static final String LOGIN_URL = BASE_URL + "/auth/login";
@@ -18,81 +27,188 @@ public class AgentConfig {
     public static String DEVICE_NAME = null;
     public static int WOL_PORT = -1;
 
-    public static final String TOKEN_FILE = "refresh_token.txt";
-    private static final String CONFIG_FILE = "agent.properties";
+    // All persistent application data lives in one predictable location.
+    public static final Path DATA_DIR = resolveDataDirectory();
+    public static final Path TOKEN_FILE =
+            DATA_DIR.resolve("refresh_token.txt");
 
-    // Store properties in memory to support multiple keys
-    private static Properties properties = new Properties();
+    private static final Path CONFIG_FILE =
+            DATA_DIR.resolve("agent.properties");
+
+    private static final Properties properties = new Properties();
+
+    private static Path resolveDataDirectory() {
+        // Explicit override, useful for testing and custom deployments.
+        String override = System.getenv("AGENT_DATA_DIR");
+
+        if (override != null && !override.isBlank()) {
+            return Paths.get(override.trim())
+                    .toAbsolutePath()
+                    .normalize();
+        }
+
+        String os = System.getProperty("os.name", "")
+                .toLowerCase(Locale.ROOT);
+
+        String userHome = System.getProperty("user.home");
+
+        if (os.contains("win")) {
+            String localAppData = System.getenv("LOCALAPPDATA");
+
+            if (localAppData != null && !localAppData.isBlank()) {
+                return Paths.get(localAppData)
+                        .resolve("RemoteProgramControlAgent")
+                        .toAbsolutePath()
+                        .normalize();
+            }
+
+            return Paths.get(
+                    userHome,
+                    "AppData",
+                    "Local",
+                    "RemoteProgramControlAgent"
+            ).toAbsolutePath().normalize();
+        }
+
+        if (os.contains("mac") || os.contains("darwin")) {
+            return Paths.get(
+                    userHome,
+                    "Library",
+                    "Application Support",
+                    "RemoteProgramControlAgent"
+            ).toAbsolutePath().normalize();
+        }
+
+        // Linux and other Unix-like operating systems.
+        String xdgConfigHome = System.getenv("XDG_CONFIG_HOME");
+
+        if (xdgConfigHome != null && !xdgConfigHome.isBlank()) {
+            Path xdgPath = Paths.get(xdgConfigHome);
+
+            if (xdgPath.isAbsolute()) {
+                return xdgPath.resolve("remote-program-control-agent")
+                        .normalize();
+            }
+        }
+
+        return Paths.get(
+                userHome,
+                ".config",
+                "remote-program-control-agent"
+        ).toAbsolutePath().normalize();
+    }
 
     private static String getBaseUrl() {
         String configuredUrl = System.getenv("AGENT_BASE_URL");
+
         if (configuredUrl != null && !configuredUrl.isBlank()) {
             return normalizeBaseUrl(configuredUrl);
         }
 
-        String profile = System.getenv().getOrDefault("AGENT_PROFILE", "prod").trim().toLowerCase();
+        String profile = System.getenv()
+                .getOrDefault("AGENT_PROFILE", "prod")
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
         return switch (profile) {
             case "prod", "production" -> PRODUCTION_BASE_URL;
             case "dev", "development", "" -> DEVELOPMENT_BASE_URL;
             default -> throw new IllegalStateException(
-                    "Unsupported AGENT_PROFILE '" + profile + "'. Use 'dev' or 'prod'.");
+                    "Unsupported AGENT_PROFILE '" + profile
+                            + "'. Use 'dev' or 'prod'."
+            );
         };
     }
 
     private static String normalizeBaseUrl(String url) {
         String normalized = url.trim();
+
         while (normalized.endsWith("/")) {
-            normalized = normalized.substring(0, normalized.length() - 1);
+            normalized = normalized.substring(
+                    0, normalized.length() - 1
+            );
         }
+
         if (normalized.isBlank()) {
-            throw new IllegalStateException("AGENT_BASE_URL must not be blank.");
+            throw new IllegalStateException(
+                    "AGENT_BASE_URL must not be blank."
+            );
         }
+
         return normalized;
     }
 
+    public static void ensureDataDirectory() throws IOException {
+        Files.createDirectories(DATA_DIR);
+    }
+
     public static void loadConfig() {
-        try (FileInputStream in = new FileInputStream(CONFIG_FILE)) {
-            properties.load(in);
-            // We don't set DEVICE_ID here anymore, as it depends on the user
-            String deviceIdStr = properties.getProperty("device.id");
-            if (deviceIdStr != null) {
-                // Optional: Keep legacy behavior for default device ID if needed,
-                // but typically we want to wait for user context.
-                // DEVICE_ID = Long.parseLong(deviceIdStr);
+        try {
+            ensureDataDirectory();
+
+            if (!Files.exists(CONFIG_FILE)) {
+                return;
+            }
+
+            try (InputStream in = Files.newInputStream(CONFIG_FILE)) {
+                properties.load(in);
             }
         } catch (IOException e) {
-            System.out.println("No config file found, using defaults.");
+            throw new IllegalStateException(
+                    "Could not load agent configuration from "
+                            + CONFIG_FILE,
+                    e
+            );
         }
     }
 
     public static long getDeviceIdForUser(String userId) {
-        String val = properties.getProperty("device.id." + userId);
-        if (val != null) {
-            return Long.parseLong(val);
+        String value = properties.getProperty("device.id." + userId);
+
+        if (value != null) {
+            return Long.parseLong(value);
         }
-        // Fallback to global device.id if user specific not found?
-        // Maybe not, to avoid confusion. But the user asked for mapping.
+
         return -1;
     }
 
-    public static void saveDeviceIdForUser(String userId, long deviceId) {
-        properties.setProperty("device.id." + userId, String.valueOf(deviceId));
+    public static void saveDeviceIdForUser(
+            String userId,
+            long deviceId
+    ) {
+        properties.setProperty(
+                "device.id." + userId,
+                String.valueOf(deviceId)
+        );
+
         saveProperties();
     }
 
     public static void saveConfig() {
-        // Legacy save, might not be needed if we only use saveDeviceIdForUser
         if (DEVICE_ID != -1) {
-            properties.setProperty("device.id", String.valueOf(DEVICE_ID));
+            properties.setProperty(
+                    "device.id",
+                    String.valueOf(DEVICE_ID)
+            );
         }
+
         saveProperties();
     }
 
-    private static void saveProperties() {
-        try (FileOutputStream out = new FileOutputStream(CONFIG_FILE)) {
-            properties.store(out, "Agent Configuration");
+    private static synchronized void saveProperties() {
+        try {
+            ensureDataDirectory();
+
+            try (OutputStream out =
+                         Files.newOutputStream(CONFIG_FILE)) {
+                properties.store(out, "Agent Configuration");
+            }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new IllegalStateException(
+                    "Could not save agent configuration to "
+                            + CONFIG_FILE,
+                    e
+            );
         }
     }
 }
