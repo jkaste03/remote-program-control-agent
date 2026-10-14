@@ -30,7 +30,7 @@ public class AgentConfig {
             return normalizeBaseUrl(configuredUrl);
         }
 
-        String profile = System.getenv().getOrDefault("AGENT_PROFILE", "dev").trim().toLowerCase();
+        String profile = System.getenv().getOrDefault("AGENT_PROFILE", "prod").trim().toLowerCase();
         return switch (profile) {
             case "prod", "production" -> PRODUCTION_BASE_URL;
             case "dev", "development", "" -> DEVELOPMENT_BASE_URL;
