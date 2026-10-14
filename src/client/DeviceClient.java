@@ -129,19 +129,19 @@ public class DeviceClient {
     }
 
     public List<String> getWhitelist(long deviceId, String filename) throws IOException, InterruptedException {
-            String token = authService.getAccessToken();
-            String url = baseUrl + "/" + deviceId + "/whitelist?filename="
-                    + URLEncoder.encode(filename, StandardCharsets.UTF_8);
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .header("Authorization", "Bearer " + token)
-                    .GET()
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() != 200) {
-                throw new IOException("Failed to get whitelist: " + response.statusCode() + " " + response.body());
-            }
-            return SimpleJson.extractStringArray(response.body());
+        String token = authService.getAccessToken();
+        String url = baseUrl + "/" + deviceId + "/whitelist?filename="
+                + URLEncoder.encode(filename, StandardCharsets.UTF_8);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Authorization", "Bearer " + token)
+                .GET()
+                .build();
+        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200) {
+            throw new IOException("Failed to get whitelist: " + response.statusCode() + " " + response.body());
+        }
+        return SimpleJson.extractStringArray(response.body());
     }
 
     private DeviceResponse parseDeviceResponse(String json) {
@@ -151,10 +151,12 @@ public class DeviceClient {
         String macAddress = SimpleJson.extractField(json, "macAddress");
         String wolPortStr = SimpleJson.extractField(json, "wakeOnLanPort");
 
-        List<String> programFilenames = SimpleJson.extractArray(json, "programs", "filename");
+        // Device responses embed programs in HAL's _embedded section, not in a
+        // top-level "programs" array.
+        List<String> programFilenames = SimpleJson.extractAllFieldValues(json, "filename");
 
         long id = idStr != null ? Long.parseLong(idStr) : 0;
-        int wolPort = wolPortStr != null ? Integer.parseInt(wolPortStr) : 9; // Default to 9 if missing
+        int wolPort = wolPortStr != null ? Integer.parseInt(wolPortStr) : 9;
 
         return new DeviceResponse(id, name, publicIp, macAddress, wolPort, programFilenames);
     }
