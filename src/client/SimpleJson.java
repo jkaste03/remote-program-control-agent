@@ -52,8 +52,65 @@ public class SimpleJson {
                 }
             }
         }
-
         return results;
+    }
+
+    /**
+     * Extracts values for a property wherever it appears in a JSON document.
+     * This is useful for HAL responses, where collection items are nested under
+     * "_embedded" instead of a direct top-level array property.
+     */
+    public static List<String> extractAllFieldValues(String json, String fieldName) {
+        List<String> results = new ArrayList<>();
+        if (json == null || json.isBlank()) {
+            return results;
+        }
+
+        Pattern pattern = Pattern.compile(
+                "\"" + Pattern.quote(fieldName) + "\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
+        Matcher matcher = pattern.matcher(json);
+        while (matcher.find()) {
+            results.add(unescapeJsonString(matcher.group(1)));
+        }
+        return results;
+    }
+
+    private static String unescapeJsonString(String value) {
+        StringBuilder result = new StringBuilder(value.length());
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c != '\\' || i + 1 >= value.length()) {
+                result.append(c);
+                continue;
+            }
+
+            char escaped = value.charAt(++i);
+            switch (escaped) {
+                case '"' -> result.append('"');
+                case '\\' -> result.append('\\');
+                case '/' -> result.append('/');
+                case 'b' -> result.append('\b');
+                case 'f' -> result.append('\f');
+                case 'n' -> result.append('\n');
+                case 'r' -> result.append('\r');
+                case 't' -> result.append('\t');
+                case 'u' -> {
+                    if (i + 4 < value.length()) {
+                        String hex = value.substring(i + 1, i + 5);
+                        try {
+                            result.append((char) Integer.parseInt(hex, 16));
+                            i += 4;
+                        } catch (NumberFormatException e) {
+                            result.append('u');
+                        }
+                    } else {
+                        result.append('u');
+                    }
+                }
+                default -> result.append(escaped);
+            }
+        }
+        return result.toString();
     }
 
     public static List<String> extractStringArray(String json) {
