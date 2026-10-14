@@ -158,7 +158,7 @@ Use AGENT_DATA_DIR to specify another absolute data directory. The service accou
 
 ## Run on Linux with systemd
 
-A systemd service has no interactive terminal, so the agent must be started in service mode rather than waiting for commands from standard input. Set AGENT_SERVICE_MODE=true in the service unit. The JAR must be built from a source version that supports this environment variable.
+A systemd service has no interactive terminal, so the agent must be started in service mode rather than waiting for commands from standard input. Set `AGENT_SERVICE_MODE=true` in the service unit as shown below.
 
 ### 1. Log in interactively as the service user
 
