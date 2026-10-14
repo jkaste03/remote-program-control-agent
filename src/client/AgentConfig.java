@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.util.Properties;
 
 public class AgentConfig {
+    private static final String DEVELOPMENT_BASE_URL = "http://localhost:8090";
+    private static final String PRODUCTION_BASE_URL = "https://www.fotcalc.com/remote-program-control";
+
     public static final String BASE_URL = getBaseUrl();
     public static final String LOGIN_URL = BASE_URL + "/auth/login";
     public static final String REFRESH_URL = BASE_URL + "/auth/refresh";
@@ -23,12 +26,28 @@ public class AgentConfig {
 
     private static String getBaseUrl() {
         String configuredUrl = System.getenv("AGENT_BASE_URL");
-        if (configuredUrl == null || configuredUrl.isBlank()) {
-            return "http://localhost:8090";
+        if (configuredUrl != null && !configuredUrl.isBlank()) {
+            return normalizeBaseUrl(configuredUrl);
         }
-        return configuredUrl.endsWith("/")
-                ? configuredUrl.substring(0, configuredUrl.length() - 1)
-                : configuredUrl;
+
+        String profile = System.getenv().getOrDefault("AGENT_PROFILE", "dev").trim().toLowerCase();
+        return switch (profile) {
+            case "prod", "production" -> PRODUCTION_BASE_URL;
+            case "dev", "development", "" -> DEVELOPMENT_BASE_URL;
+            default -> throw new IllegalStateException(
+                    "Unsupported AGENT_PROFILE '" + profile + "'. Use 'dev' or 'prod'.");
+        };
+    }
+
+    private static String normalizeBaseUrl(String url) {
+        String normalized = url.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        if (normalized.isBlank()) {
+            throw new IllegalStateException("AGENT_BASE_URL must not be blank.");
+        }
+        return normalized;
     }
 
     public static void loadConfig() {

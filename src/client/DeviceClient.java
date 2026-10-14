@@ -7,6 +7,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import java.util.List;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 public class DeviceClient {
     private final AuthService authService;
@@ -124,6 +126,22 @@ public class DeviceClient {
         if (response.statusCode() != 200) {
             throw new IOException("Failed to sync programs: " + response.statusCode() + " " + response.body());
         }
+    }
+
+    public List<String> getWhitelist(long deviceId, String filename) throws IOException, InterruptedException {
+            String token = authService.getAccessToken();
+            String url = baseUrl + "/" + deviceId + "/whitelist?filename="
+                    + URLEncoder.encode(filename, StandardCharsets.UTF_8);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .header("Authorization", "Bearer " + token)
+                    .GET()
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new IOException("Failed to get whitelist: " + response.statusCode() + " " + response.body());
+            }
+            return SimpleJson.extractStringArray(response.body());
     }
 
     private DeviceResponse parseDeviceResponse(String json) {

@@ -1,15 +1,32 @@
 # Remote Program Control agent
 
 Agenten kobler programmer til Remote Program Control. Den synkroniserer
-programfiler fra program-shortcuts, starter og stopper dem og rapporterer
-status over SSE.
+programfiler fra program-shortcuts (en mappe rett utenfor agentprosjektet),
+starter og stopper dem og rapporterer status over SSE.
 
 ## Authentication
 
 Authentication is handled by the application's internal user store. No
 external identity provider or browser-based OAuth flow is required.
 
-Set the server URL before starting the agent (optional):
+The agent supports explicit development and production profiles. Production
+uses the endpoint configured for the selected deployment; the agent must not
+connect directly to the PostgreSQL database.
+
+For production:
+
+~~~text
+AGENT_PROFILE=prod
+~~~
+
+For local development:
+
+~~~text
+AGENT_PROFILE=dev
+~~~
+
+An explicit AGENT_BASE_URL overrides the profile, which is useful for a
+local test server or another deployment:
 
 ~~~text
 AGENT_BASE_URL=<your-development-server-url>
@@ -32,6 +49,7 @@ The agent can launch:
 - Shell scripts through bash
 - Executables and other files supported by the operating system
 
-Windows shortcut files in program-shortcuts may point to any supported launch
-file. Minecraft servers receive their server-specific readiness and graceful
-stop handling; other programs use the generic process strategies.
+Shortcut files in program-shortcuts can point to supported launch files on
+all operating systems. For Minecraft servers, the agent uses the shortcut
+target and working directory to find whitelist.json. If present, whitelist
+changes can be synchronized with the owner and explicitly assigned users.

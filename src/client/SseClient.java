@@ -6,6 +6,10 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.function.BiConsumer;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 public class SseClient {
@@ -16,6 +20,8 @@ public class SseClient {
     private final long deviceId;
     private final AuthService authService;
     private final BiConsumer<String, String> eventHandler;
+    private final ScheduledExecutorService retryExecutor = Executors.newSingleThreadScheduledExecutor(
+            daemonThreadFactory());
     private long retryDelayMs = BASE_RETRY_MS;
 
     public SseClient(long deviceId, AuthService authService, BiConsumer<String, String> eventHandler) {
@@ -59,12 +65,15 @@ public class SseClient {
     private void retry() {
         long waitMs = retryDelayMs + ThreadLocalRandom.current().nextLong(0, 500);
         retryDelayMs = Math.min(MAX_RETRY_MS, retryDelayMs * 2);
-        try {
-            Thread.sleep(waitMs);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-        }
-        connect(); // Reconnect
+        retryExecutor.schedule(this::connect, waitMs, TimeUnit.MILLISECONDS);
+    }
+
+    private static ThreadFactory daemonThreadFactory() {
+        return runnable -> {
+            Thread thread = new Thread(runnable, "SseClient-Reconnect");
+            thread.setDaemon(true);
+            return thread;
+        };
     }
 
     private void processResponse(HttpResponse<Stream<String>> response) {

@@ -56,6 +56,15 @@ public class SimpleJson {
         return results;
     }
 
+    public static List<String> extractStringArray(String json) {
+        List<String> results = new ArrayList<>();
+        Matcher matcher = Pattern.compile("\"((?:\\\\.|[^\"\\\\])*)\"").matcher(json);
+        while (matcher.find()) {
+            results.add(matcher.group(1).replace("\\\"", "\"").replace("\\\\", "\\"));
+        }
+        return results;
+    }
+
     public static String createDeviceRequest(String name, String publicIp, int wakeOnLanPort, String macAddress) {
         return String.format("{\"name\": \"%s\", \"publicIp\": \"%s\", \"wakeOnLanPort\": %d, \"macAddress\": \"%s\"}",
                 name, publicIp, wakeOnLanPort, macAddress);

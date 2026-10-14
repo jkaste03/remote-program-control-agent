@@ -36,7 +36,7 @@ public class AuthService {
         if (refreshToken != null) {
             try {
                 return refreshAccessToken(refreshToken);
-            } catch (IOException e) {
+            } catch (InvalidRefreshTokenException e) {
                 System.out.println("Stored credentials are no longer valid; logging in again.");
                 deleteRefreshToken();
             }
@@ -118,16 +118,29 @@ public class AuthService {
 
     private IOException authenticationError(String url, int statusCode, String responseBody) {
         if (statusCode == 401 && url.equals(AgentConfig.LOGIN_URL)) {
-            return new IOException("Login failed: username or password is incorrect.");
+            return new InvalidCredentialsException("Login failed: username or password is incorrect.");
         }
         if (statusCode == 401 && url.equals(AgentConfig.REFRESH_URL)) {
-            return new IOException("The saved refresh token has expired or was revoked.");
+            return new InvalidRefreshTokenException("The saved refresh token has expired or was revoked.");
         }
+
         if (statusCode >= 500) {
             return new IOException("The authentication server returned HTTP " + statusCode
                     + " while processing the login. Check the server log.");
         }
         return new IOException("Authentication request failed with HTTP " + statusCode + ".");
+    }
+
+    private static final class InvalidRefreshTokenException extends IOException {
+        private InvalidRefreshTokenException(String message) {
+            super(message);
+        }
+    }
+
+    public static final class InvalidCredentialsException extends IOException {
+        private InvalidCredentialsException(String message) {
+            super(message);
+        }
     }
 
     private void saveRefreshToken(String token) throws IOException {

@@ -11,15 +11,24 @@ public class ServerEventHandler implements BiConsumer<String, String> {
     private static final Logger LOGGER = Logger.getLogger(ServerEventHandler.class.getName());
 
     private final AgentController agentController;
+    private final WhitelistSyncService whitelistSyncService;
 
-    public ServerEventHandler(AgentController agentController) {
+    public ServerEventHandler(AgentController agentController, WhitelistSyncService whitelistSyncService) {
         this.agentController = agentController;
+        this.whitelistSyncService = whitelistSyncService;
     }
 
     @Override
     public void accept(String event, String data) {
         if ("PING".equals(event)) {
             return; // ignore noisy heartbeat events
+        }
+        if ("WHITELIST_CHANGED".equals(event)) {
+            String filename = SimpleJson.extractField(data, "filename");
+            if (filename != null) {
+                whitelistSyncService.sync(filename);
+            }
+            return;
         }
 
         LOGGER.log(Level.INFO, "Received event: {0}, data: {1}", new Object[] { event, data });

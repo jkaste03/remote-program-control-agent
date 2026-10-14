@@ -26,9 +26,13 @@ public class ShortcutResolver {
         if (Files.isSymbolicLink(shortcutFile.toPath())) {
             try {
                 Path target = Files.readSymbolicLink(shortcutFile.toPath());
+                if (!target.isAbsolute()) {
+                    target = shortcutFile.toPath().getParent().resolve(target);
+                }
+                target = target.toAbsolutePath().normalize();
                 // For symlinks, we assume no extra args/workdir unless we parse them from
                 // somewhere else
-                return new ShortcutInfo(target.toAbsolutePath().toString(), "", target.getParent().toString());
+                return new ShortcutInfo(target.toString(), "", target.getParent().toString());
             } catch (Exception e) {
                 System.err.println("Failed to resolve symlink: " + e.getMessage());
                 return null;

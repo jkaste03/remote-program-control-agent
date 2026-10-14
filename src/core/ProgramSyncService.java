@@ -26,7 +26,7 @@ public class ProgramSyncService {
      * Called by the directory watcher when changes are detected.
      * Uses the cached server state to avoid unnecessary API calls.
      */
-    public void syncPrograms() {
+    public synchronized void syncPrograms() {
         try {
             logger.info("Checking for program synchronization...");
 
@@ -59,7 +59,7 @@ public class ProgramSyncService {
     /**
      * Called at startup with the initial state from the server.
      */
-    public void syncPrograms(List<String> serverPrograms) {
+    public synchronized void syncPrograms(List<String> serverPrograms) {
         if (serverPrograms == null) {
             serverPrograms = Collections.emptyList();
         }
