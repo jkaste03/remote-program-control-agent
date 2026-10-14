@@ -42,8 +42,7 @@ public class Agent {
         return Paths.get(
                 System.getProperty("user.home"),
                 "RemoteProgramControl",
-                "program-shortcuts"
-        ).toAbsolutePath().normalize();
+                "program-shortcuts").toAbsolutePath().normalize();
     }
 
     public static void main(String[] args) {
@@ -62,9 +61,8 @@ public class Agent {
             return;
         }
         ProcessManager processManager = new ProcessManager(
-            SHORTCUT_FOLDER,
-            AgentConfig.DATA_DIR.resolve("active_processes.txt")
-        );
+                SHORTCUT_FOLDER,
+                AgentConfig.DATA_DIR.resolve("active_processes.txt"));
 
         // Domain Services
         DeviceRegistrationService registrationService = new DeviceRegistrationService(deviceClient, inputHandler,
@@ -110,17 +108,29 @@ public class Agent {
         sseClient.start();
         startRecoveryScheduler(deviceClient, programSyncService, whitelistSyncService);
 
-        // 4. Keep the application running and listen for user input
-        inputHandler.listenForCommands(
-                () -> {
-                    LOGGER.info("Logging out...");
-                    authService.logout();
-                    System.exit(0);
-                },
-                () -> {
-                    LOGGER.info("Exiting...");
-                    System.exit(0);
-                });
+        // 4. Keep the application running. systemd has no interactive console.
+        if (Boolean.parseBoolean(System.getenv("AGENT_SERVICE_MODE"))) {
+            LOGGER.info("Running in service mode; terminal command listener disabled.");
+            try {
+                new java.util.concurrent.CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                LOGGER.info("Agent main thread interrupted; shutting down.");
+            }
+        } else {
+            // Manual execution: keep the interactive console commands.
+            inputHandler.listenForCommands(
+                    () -> {
+                        LOGGER.info("Logging out...");
+                        authService.logout();
+                        System.exit(0);
+                    },
+                    () -> {
+                        LOGGER.info("Exiting...");
+                        System.exit(0);
+                    });
+        }
+
     }
 
     private static List<String> initializeWithRetry(DeviceRegistrationService registrationService) {
