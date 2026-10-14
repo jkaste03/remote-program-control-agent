@@ -77,7 +77,7 @@ public class Agent {
         processManager.setProcessExitListener((programId, filename) -> {
             try {
                 deviceClient.updateProgramStatus(programId, "STOPPED");
-                LOGGER.info("Detected unexpected stop for program id=" + programId + " (" + filename + ")");
+                LOGGER.info("Detected process exit for program id=" + programId + " (" + filename + ")");
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 LOGGER.severe("Interrupted while reporting program stop for id=" + programId + ": " + e.getMessage());

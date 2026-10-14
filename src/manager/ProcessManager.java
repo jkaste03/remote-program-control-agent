@@ -29,6 +29,7 @@ public class ProcessManager {
     private final CommandBuilder commandBuilder;
     private final ProcessKiller processKiller;
     private final Map<String, ManagedProcess> activeProcesses = new ConcurrentHashMap<>();
+    private final Map<ManagedProcess, MinecraftPlayerMonitor> minecraftPlayerMonitors = new ConcurrentHashMap<>();
     private final ProgramHandlerFactory programHandlerFactory;
     private final Path stateFilePath;
     private ProcessExitListener exitListener;
@@ -84,12 +85,33 @@ public class ProcessManager {
             ManagedProcess mp = new ManagedProcess(p, null, false, handler, programId);
             handler.onStart(p, mp);
 
+            // Minecraft player monitoring begins only after the server reports readiness.
+            boolean isMinecraft = handler instanceof program.MinecraftProgramHandler;
+            final MinecraftPlayerMonitor playerMonitor = isMinecraft
+                    ? new MinecraftPlayerMonitor(filename, mp, () -> {
+                        stopProgramForInactivity(filename).whenComplete((success, error) -> {
+                            if (error != null) {
+                                LOGGER.log(Level.SEVERE,
+                                        "Automatic Minecraft stop failed for " + filename, error);
+                            } else if (Boolean.TRUE.equals(success)) {
+                                LOGGER.log(Level.INFO,
+                                        "Minecraft stopped after four consecutive empty player checks: " + filename);
+                            } else {
+                                LOGGER.log(Level.WARNING,
+                                        "Could not confirm Minecraft stop after consecutive empty checks: " + filename);
+                            }
+                        });
+                    })
+                    : null;
+            if (playerMonitor != null) {
+                minecraftPlayerMonitors.put(mp, playerMonitor);
+            }
+
             registerActiveProcess(filename, mp);
 
             LOGGER.log(Level.INFO, () -> "Started: " + target.realFile.getAbsolutePath() + " PID=" + p.pid());
 
             // Readiness detection: MC waits for "Done (..)!"; others are ready immediately
-            boolean isMinecraft = handler instanceof program.MinecraftProgramHandler;
             if (!isMinecraft) {
                 mp.markReady();
             }
@@ -106,8 +128,14 @@ public class ProcessManager {
             new Thread(new ProcessOutputLogger(mp, filename,
                     () -> handlePauseDuringShutdown(filename, mp),
                     line -> {
+                        if (playerMonitor != null) {
+                            playerMonitor.onOutputLine(line);
+                        }
                         if (isMinecraft && line.contains("Done (") && line.contains("For help")) {
                             mp.markReady();
+                            if (playerMonitor != null) {
+                                playerMonitor.start();
+                            }
                         }
                     })).start();
 
@@ -120,6 +148,19 @@ public class ProcessManager {
     }
 
     public CompletableFuture<Boolean> stopProgram(String filename) {
+        return stopProgram(filename, false);
+    }
+
+    /**
+     * Stops a Minecraft process after the idle player-count threshold is reached.
+     * Unlike a server-requested stop, this must be reported to the server when the
+     * process exits so the remote program status does not remain STARTED.
+     */
+    public CompletableFuture<Boolean> stopProgramForInactivity(String filename) {
+        return stopProgram(filename, true);
+    }
+
+    private CompletableFuture<Boolean> stopProgram(String filename, boolean reportStoppedStatus) {
         ManagedProcess mp = activeProcesses.get(filename);
         if (mp == null) {
             LOGGER.log(Level.INFO, () -> "No active process found for: " + filename);
@@ -143,7 +184,9 @@ public class ProcessManager {
         // hvis prosessen henger (f.eks. pga "pause" i batch-script).
         new Thread(() -> {
             try {
-                mp.markStoppedByAgent();
+                if (!reportStoppedStatus) {
+                    mp.markStoppedByAgent();
+                }
                 mp.getHandler().stop(mp, processKiller);
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, "Error while stopping " + filename, e);
@@ -247,6 +290,10 @@ public class ProcessManager {
 
         if (handler instanceof program.MinecraftProgramHandler) {
             mp.setMinecraft(true);
+            LOGGER.log(Level.WARNING,
+                    "Restored Minecraft process " + filename
+                            + " has no attached console input. Automatic player-count monitoring will resume "
+                            + "when the server is next started by the agent.");
         }
 
         mp.markReady();
@@ -276,6 +323,10 @@ public class ProcessManager {
         CompletableFuture<ProcessHandle> onExit = handle.onExit();
         onExit.thenRun(() -> {
             removeActiveProcess(filename, mp);
+            MinecraftPlayerMonitor monitor = minecraftPlayerMonitors.remove(mp);
+            if (monitor != null) {
+                monitor.close();
+            }
             if (exitListener != null && !mp.isStoppedByAgent() && mp.getProgramId() > 0) {
                 exitListener.onProcessExit(mp.getProgramId(), filename);
             }

@@ -1,6 +1,7 @@
 package manager;
 
 import java.io.BufferedWriter;
+import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -55,6 +56,19 @@ public class ManagedProcess {
 
     public BufferedWriter getStdinWriter() {
         return stdinWriter;
+    }
+
+    /**
+     * Sends a command to the Minecraft console. Synchronizing on the managed process
+     * prevents periodic monitoring commands from interleaving with a stop command.
+     */
+    public synchronized void sendMinecraftCommand(String command) throws IOException {
+        if (stdinWriter == null) {
+            throw new IOException("Minecraft console input is unavailable.");
+        }
+        stdinWriter.write(command);
+        stdinWriter.newLine();
+        stdinWriter.flush();
     }
 
     public boolean isMinecraft() {

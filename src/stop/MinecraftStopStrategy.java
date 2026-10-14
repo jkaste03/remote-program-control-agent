@@ -1,6 +1,5 @@
 package stop;
 
-import java.io.BufferedWriter;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -20,9 +19,7 @@ public class MinecraftStopStrategy implements StopStrategy {
     public void stop(ManagedProcess mp, ProcessKiller killer) throws Exception {
         if (mp.getStdinWriter() != null) {
             LOGGER.log(Level.INFO, "Sending 'stop' to Minecraft (PID={0})", mp.pid());
-            BufferedWriter w = mp.getStdinWriter();
-            w.write("stop\n");
-            w.flush();
+            mp.sendMinecraftCommand("stop");
             if (!mp.waitFor(gracefulTimeoutSeconds, TimeUnit.SECONDS)) {
                 LOGGER.log(Level.WARNING, "Minecraft did not exit within {0}s — forcing kill.", gracefulTimeoutSeconds);
                 killer.killProcessTree(mp.pid(), true);

@@ -137,6 +137,19 @@ Place each launch file or shortcut directly in the program-shortcuts folder and 
 
 For Minecraft server launch files, the agent uses the shortcut target and working directory when locating whitelist.json. When found, whitelist changes can be synchronized with the owner and explicitly assigned users.
 
+## Automatic Minecraft idle shutdown
+
+When a Minecraft server is started and reaches its ready state, the agent checks its player count every five minutes by sending the Minecraft console command `list`. If four consecutive checks report zero players, the agent requests a graceful server stop.
+
+- Any check reporting one or more players resets the consecutive-empty counter.
+- A missing or unrecognized response is logged and does not count as an empty check.
+- The monitor logs each requested check, parsed player count, consecutive empty-check count, timeouts, and the resulting stop request. With systemd, view these messages alongside the agent and Minecraft console output using `journalctl`.
+- Monitoring uses the server console input/output attached when the agent launches the process. If the agent restores a Minecraft process after restarting and has no console input handle for that process, it logs a warning; monitoring resumes after the server is next started by the agent.
+
+The four-check threshold is fixed at four checks, approximately 20 minutes of reported zero players after the server becomes ready.
+
+---
+
 ## Where local data is stored
 
 The agent keeps local configuration, refresh token, and active-process tracking data in its data directory.
