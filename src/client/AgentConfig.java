@@ -22,6 +22,36 @@ public class AgentConfig {
     public static final String LOGIN_URL = BASE_URL + "/auth/login";
     public static final String REFRESH_URL = BASE_URL + "/auth/refresh";
     public static final String API_BASE_URL = BASE_URL + "/api/v1";
+    public static final String SSE_API_BASE_URL = getSseApiBaseUrl();
+
+    private static String getSseApiBaseUrl() {
+        String override = System.getenv("AGENT_SSE_BASE_URL");
+
+        if (override != null && !override.isBlank()) {
+            return normalizeBaseUrl(override);
+        }
+
+        // If a custom server URL is configured, use it for SSE too.
+        String explicitBaseUrl = System.getenv("AGENT_BASE_URL");
+
+        if (explicitBaseUrl != null && !explicitBaseUrl.isBlank()) {
+            return API_BASE_URL;
+        }
+
+        String profile = System.getenv()
+                .getOrDefault("AGENT_PROFILE", "prod")
+                .trim()
+                .toLowerCase(Locale.ROOT);
+
+        return switch (profile) {
+            case "prod", "production" ->
+                    "https://api.fotcalc.com/remote-program-control/api/v1";
+            case "dev", "development", "" -> API_BASE_URL;
+            default -> throw new IllegalStateException(
+                    "Unsupported AGENT_PROFILE '" + profile + "'."
+            );
+        };
+    }
 
     public static long DEVICE_ID = -1;
     public static String DEVICE_NAME = null;

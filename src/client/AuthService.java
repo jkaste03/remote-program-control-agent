@@ -172,6 +172,10 @@ public class AuthService {
         Files.deleteIfExists(AgentConfig.TOKEN_FILE);
     }
 
+    public synchronized void invalidateCachedAccessToken() {
+        cachedAccessToken = null;
+    }
+
     public synchronized void logout() {
         try {
             deleteRefreshToken();

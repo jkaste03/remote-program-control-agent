@@ -38,7 +38,7 @@ public class SseClient {
     private void connect() {
         try {
             String token = authService.getAccessToken();
-            String url = AgentConfig.API_BASE_URL + "/devices/" + deviceId + "/events";
+            String url = AgentConfig.SSE_API_BASE_URL + "/devices/" + deviceId + "/events";
 
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -78,7 +78,19 @@ public class SseClient {
 
     private void processResponse(HttpResponse<Stream<String>> response) {
         if (response.statusCode() != 200) {
-            System.err.println("Server returned status: " + response.statusCode());
+            int statusCode = response.statusCode();
+
+            response.body().close();
+
+            System.err.println("Server returned status: " + statusCode);
+
+            if (statusCode == 401) {
+                authService.invalidateCachedAccessToken();
+                System.err.println(
+                        "SSE authentication failed; refreshing access token."
+                );
+            }
+
             retry();
             return;
         }
