@@ -33,6 +33,8 @@ public class ProcessManager {
     private final ProgramHandlerFactory programHandlerFactory;
     private final Path stateFilePath;
     private ProcessExitListener exitListener;
+    private java.util.function.BiConsumer<String, String> minecraftOutputListener;
+    private java.util.function.Consumer<String> minecraftReadyListener;
     private static final String STATE_FILE_NAME = "active_processes.txt";
     private static final boolean WINDOWS = System.getProperty("os.name").toLowerCase().contains("win");
     private static final Logger LOGGER = Logger.getLogger(ProcessManager.class.getName());
@@ -131,8 +133,10 @@ public class ProcessManager {
                         if (playerMonitor != null) {
                             playerMonitor.onOutputLine(line);
                         }
+                        if (isMinecraft && minecraftOutputListener != null) minecraftOutputListener.accept(filename, line);
                         if (isMinecraft && line.contains("Done (") && line.contains("For help")) {
                             mp.markReady();
+                            if (minecraftReadyListener != null) minecraftReadyListener.accept(filename);
                             if (playerMonitor != null) {
                                 playerMonitor.start();
                             }
@@ -376,6 +380,25 @@ public class ProcessManager {
             this.arguments = arguments;
             this.workingDirectory = workingDirectory;
         }
+    }
+
+    public void setMinecraftListeners(java.util.function.BiConsumer<String, String> output,
+            java.util.function.Consumer<String> ready) {
+        this.minecraftOutputListener = output;
+        this.minecraftReadyListener = ready;
+    }
+
+    public boolean isMinecraftRunning(String filename) {
+        ManagedProcess mp = activeProcesses.get(filename);
+        return mp != null && mp.isAlive() && mp.isMinecraft() && mp.getReadyFuture().isDone()
+                && Boolean.TRUE.equals(mp.getReadyFuture().getNow(false)) && mp.getStdinWriter() != null;
+    }
+
+    public boolean sendMinecraftCommand(String filename, String command) throws IOException {
+        ManagedProcess mp = activeProcesses.get(filename);
+        if (mp == null || !isMinecraftRunning(filename)) return false;
+        mp.sendMinecraftCommand(command);
+        return true;
     }
 
     public void setProcessExitListener(ProcessExitListener listener) {
