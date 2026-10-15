@@ -13,7 +13,7 @@ import manager.ProcessManager;
 public class WhitelistSyncService {
     private static final Logger LOG = Logger.getLogger(WhitelistSyncService.class.getName());
     private static final Pattern USERNAME = Pattern.compile("[A-Za-z0-9_]{3,16}");
-    private static final Pattern LIST = Pattern.compile("(?i)There are (\\d+) whitelisted players?(?: out of .*?)?:\\s*(.*)");
+    private static final Pattern LIST = Pattern.compile("(?i)There are (?:(\\d+) whitelisted players?(?: out of .*?)?:\\s*(.*)|no whitelisted players)");
     private final DeviceClient client;
     private final ProcessManager processes;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
@@ -43,8 +43,10 @@ public class WhitelistSyncService {
         if (future == null) return;
         Matcher matcher = LIST.matcher(line);
         if (!matcher.find()) return;
-        int count = Integer.parseInt(matcher.group(1));
-        String names = matcher.group(2).trim();
+        // Minecraft 26.x says "There are no whitelisted players" when the list is empty.
+        // Older/newer variants with entries report a numeric count and names.
+        int count = matcher.group(1) == null ? 0 : Integer.parseInt(matcher.group(1));
+        String names = matcher.group(2) == null ? "" : matcher.group(2).trim();
         Set<String> actual = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
         if (!names.isEmpty()) {
             for (String name : names.split(",\\s*")) actual.add(name.trim());
