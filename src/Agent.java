@@ -26,7 +26,7 @@ public class Agent {
     private static final Logger LOGGER = Logger.getLogger(Agent.class.getName());
     private static final long INITIAL_RETRY_MS = 5000;
     private static final long MAX_RETRY_MS = 60000;
-    private static final long RECOVERY_INTERVAL_SECONDS = 30;
+    private static final long RECOVERY_INTERVAL_SECONDS = 600;
     // Keep shortcuts beside the agent project, not inside it.
     private static final Path SHORTCUT_FOLDER = resolveShortcutFolder();
 
