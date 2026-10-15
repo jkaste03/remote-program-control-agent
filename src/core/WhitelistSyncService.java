@@ -13,7 +13,7 @@ import manager.ProcessManager;
 public class WhitelistSyncService {
     private static final Logger LOG = Logger.getLogger(WhitelistSyncService.class.getName());
     private static final Pattern USERNAME = Pattern.compile("[A-Za-z0-9_]{3,16}");
-    private static final Pattern LIST = Pattern.compile("(?i)There are (?:(\\d+) whitelisted players?(?: out of .*?)?:\\s*(.*)|no whitelisted players)");
+    private static final Pattern LIST = Pattern.compile("(?i)There are (?:(\\d+) whitelisted player(?:s|\\(s\\))?(?: out of .*?)?:\\s*(.*)|no whitelisted players)");
     private final DeviceClient client;
     private final ProcessManager processes;
     private final ExecutorService worker = Executors.newSingleThreadExecutor(r -> {
