@@ -69,7 +69,8 @@ public class Agent {
                 authService);
         AgentController agentController = new AgentController(processManager, deviceClient);
         ProgramSyncService programSyncService = new ProgramSyncService(deviceClient, SHORTCUT_FOLDER);
-        WhitelistSyncService whitelistSyncService = new WhitelistSyncService(deviceClient, SHORTCUT_FOLDER);
+        WhitelistSyncService whitelistSyncService = new WhitelistSyncService(deviceClient, processManager);
+        processManager.setMinecraftListeners(whitelistSyncService::onOutputLine, whitelistSyncService::sync);
         ProgramDirectoryWatcher programWatcher = new ProgramDirectoryWatcher(SHORTCUT_FOLDER,
                 programSyncService::syncPrograms);
         ServerEventHandler eventHandler = new ServerEventHandler(agentController, whitelistSyncService);
