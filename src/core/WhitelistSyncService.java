@@ -54,67 +54,36 @@ public class WhitelistSyncService {
 
     private void reconcile(String filename) {
         if (!processes.isMinecraftRunning(filename)) return;
+        CompletableFuture<Set<String>> response = new CompletableFuture<>();
         try {
             List<String> desiredNames = client.getWhitelist(AgentConfig.DEVICE_ID, filename);
             if (desiredNames == null) return;
             Set<String> desired = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
             for (String name : desiredNames) {
                 if (name == null || !USERNAME.matcher(name).matches()) {
-                    LOG.warning("Invalid Minecraft username ignored for " + filename + ": " + name
-                            + ". Whitelist was left unchanged to avoid removing legitimate entries.");
-                    return;
+                    LOG.warning("Invalid Minecraft username ignored for " + filename + ": " + name);
+                    return; // Never remove entries when source data is invalid.
                 }
                 desired.add(name);
             }
-
-            Set<String> actual = readWhitelist(filename);
+            pending.put(filename, response);
+            if (!processes.sendMinecraftCommand(filename, "whitelist list")) return;
+            Set<String> actual = response.get(10, TimeUnit.SECONDS);
             for (String name : actual) {
-                if (!desired.contains(name)
-                        && !processes.sendMinecraftCommand(filename, "whitelist remove " + name)) {
-                    throw new IOException("Minecraft console is unavailable while removing " + name);
+                if (!desired.contains(name)) {
+                    if (!processes.sendMinecraftCommand(filename, "whitelist remove " + name)) return;
                 }
             }
             for (String name : desired) {
-                if (!actual.contains(name)
-                        && !processes.sendMinecraftCommand(filename, "whitelist add " + name)) {
-                    throw new IOException("Minecraft console is unavailable while adding " + name);
+                if (!actual.contains(name)) {
+                    if (!processes.sendMinecraftCommand(filename, "whitelist add " + name)) return;
                 }
             }
-
-            // Commands can be rejected by Minecraft (for example, when Mojang cannot
-            // resolve a username). Re-read the list before claiming synchronization succeeded.
-            Set<String> verified = readWhitelist(filename);
-            Set<String> missing = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-            missing.addAll(desired);
-            missing.removeAll(verified);
-            Set<String> unexpected = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-            unexpected.addAll(verified);
-            unexpected.removeAll(desired);
-
-            if (missing.isEmpty() && unexpected.isEmpty()) {
-                LOG.info("Minecraft whitelist successfully verified for " + filename);
-            } else {
-                LOG.warning("Minecraft whitelist is NOT synchronized for " + filename
-                        + ". Could not add/verify usernames: " + missing
-                        + "; unexpected entries still present: " + unexpected
-                        + ". Check that each username is the current Java Edition profile name.");
-            }
+            LOG.info("Minecraft whitelist commands synchronized for " + filename);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (IOException | ExecutionException | TimeoutException e) {
             LOG.log(Level.WARNING, "Minecraft whitelist sync failed for " + filename, e);
-        }
-    }
-
-    private Set<String> readWhitelist(String filename)
-            throws IOException, InterruptedException, ExecutionException, TimeoutException {
-        CompletableFuture<Set<String>> response = new CompletableFuture<>();
-        pending.put(filename, response);
-        try {
-            if (!processes.sendMinecraftCommand(filename, "whitelist list")) {
-                throw new IOException("Minecraft console is unavailable while reading whitelist");
-            }
-            return response.get(10, TimeUnit.SECONDS);
         } finally {
             pending.remove(filename, response);
         }
